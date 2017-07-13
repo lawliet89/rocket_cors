@@ -333,13 +333,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
     }
 }
 
-/// An enum signifying that some type T is allowed, or `All` (everything is allowed).
+/// An enum signifying that some set of type T is allowed, or `All` (everything is allowed).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AllOrSome<T: Hash + Eq> {
     /// Everything is allowed. Usually equivalent to the "*" value.
     All,
-    /// Only some `T` is allowed
+    /// Only some set of `T` is allowed
     Some(HashSet<T>),
 }
 
@@ -387,7 +387,7 @@ pub struct Options {
     /// case-sensitive manner.
     ///
     /// This is the `list of origins` in the
-    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model)
+    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     ///
     /// This field defaults to `All`.
@@ -442,6 +442,9 @@ pub struct Options {
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
     ///
+    /// This is the `list of methods` in the
+    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
+    ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
     // #[serde(default = "Options::default_allowed_methods")]
     pub allowed_methods: HashSet<Method>,
@@ -451,24 +454,46 @@ pub struct Options {
     /// If `All` is set, whatever is requested by the client in `Access-Control-Request-Headers`
     /// will be echoed back in the `Access-Control-Allow-Headers` header.
     ///
+    /// This is the `list of headers` in the
+    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
+    ///
     /// Defaults to `All`.
     pub allowed_headers: AllOrSome<HeaderFieldName>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
     /// This allows cookies and credentials to be submitted across domains.
     ///
-    /// This CANNOT be used in conjunction with `allowed_origins` set to `All` and
-    /// `send_wildcard` set to `true`.
+    /// This **CANNOT** be used in conjunction with `allowed_origins` set to `All` and
+    /// `send_wildcard` set to `true`. Depending on the mode of usage, this will either result
+    /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
     pub allow_credentials: bool,
-    /// The `Access-Control-Expose-Headers` responde header
+    /// The list of headers which are safe to expose to the API of a CORS API specification.
+    /// This corresponds to the `Access-Control-Expose-Headers` responde header.
+    ///
+    /// This is the `list of exposed headers` in the
+    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
+    ///
+    /// This defaults to an empty set.
     pub expose_headers: HashSet<String>,
-    /// The `Access-Control-Max-Age` response header
+    /// The maximum time for which this CORS request maybe cached. This value is set as the
+    /// `Access-Control-Max-Age` header.
+    ///
+    /// This defaults to `None` (unset).
     pub max_age: Option<usize>,
     /// If true, and the `allowed_origins` parameter is `All`, a wildcard
     /// `Access-Control-Allow-Origin` response header is sent, rather than the request’s
     /// `Origin` header.
+    ///
+    /// This is the `supports credentials flag` in the
+    /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
+    ///
+    /// This **CANNOT** be used in conjunction with `allowed_origins` set to `All` and
+    /// `allow_credentials` set to `true`. Depending on the mode of usage, this will either result
+    /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
+    ///
+    /// Defaults to `false`.
     pub send_wildcard: bool,
 }
 
@@ -487,7 +512,7 @@ impl Default for Options {
 }
 
 impl Options {
-    pub(crate) fn default_allowed_methods() -> HashSet<Method> {
+    fn default_allowed_methods() -> HashSet<Method> {
         vec![
             Method::Get,
             Method::Head,
@@ -679,7 +704,7 @@ impl<'r, R: Responder<'r>> Response<R> {
     /// Consumes the responder and based on the provided list of allowed origins,
     /// check if the requested origin is allowed.
     /// Useful for pre-flight and during requests
-    pub(crate) fn allowed_origin(
+    fn allowed_origin(
         responder: R,
         origin: &Origin,
         allowed_origins: &AllOrSome<Url>,
@@ -709,13 +734,13 @@ impl<'r, R: Responder<'r>> Response<R> {
     }
 
     /// Consumes responder and returns CORS with any origin
-    pub(crate) fn any(responder: R) -> Self {
+    fn any(responder: R) -> Self {
         Self::origin(responder, "*", false)
     }
 
     /// Consumes the CORS, set allow_credentials to
     /// new value and returns changed CORS
-    pub(crate) fn credentials(mut self, value: bool) -> Result<Self, Error> {
+    fn credentials(mut self, value: bool) -> Result<Self, Error> {
         if value && self.allow_origin == "*" {
             Err(Error::CredentialsWithWildcardOrigin)?;
         }
@@ -726,14 +751,14 @@ impl<'r, R: Responder<'r>> Response<R> {
 
     /// Consumes the CORS, set expose_headers to
     /// passed headers and returns changed CORS
-    pub(crate) fn exposed_headers(mut self, headers: &[&str]) -> Self {
+    fn exposed_headers(mut self, headers: &[&str]) -> Self {
         self.expose_headers = headers.into_iter().map(|s| s.to_string().into()).collect();
         self
     }
 
     /// Consumes the CORS, set max_age to
     /// passed value and returns changed CORS
-    pub(crate) fn max_age(mut self, value: Option<usize>) -> Self {
+    fn max_age(mut self, value: Option<usize>) -> Self {
         self.max_age = value;
         self
     }
@@ -747,7 +772,7 @@ impl<'r, R: Responder<'r>> Response<R> {
 
     /// Consumes the CORS, check if requested method is allowed.
     /// Useful for pre-flight checks
-    pub(crate) fn allowed_methods(
+    fn allowed_methods(
         self,
         method: &AccessControlRequestMethod,
         allowed_methods: HashSet<Method>,
@@ -770,7 +795,7 @@ impl<'r, R: Responder<'r>> Response<R> {
 
     /// Consumes the CORS, check if requested headers are allowed.
     /// Useful for pre-flight checks
-    pub(crate) fn allowed_headers(
+    fn allowed_headers(
         self,
         headers: &AccessControlRequestHeaders,
         allowed_headers: &AllOrSome<HeaderFieldName>,
