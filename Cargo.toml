@@ -1,0 +1,33 @@
+[package]
+name = "rocket_cors"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = ["Yong Wen Chua <me@yongwen.xyz>"]
+build = "build.rs"
+description = "Cross-origin resource sharing (CORS) for Rocket.rs applications"
+homepage = "https://github.com/lawliet89/rocket_cors"
+repository = "https://github.com/lawliet89/rocket_cors"
+documentation = "https://docs.rs/rocket_cors/"
+keywords = ["rocket", "cors"]
+categories = ["web-programming"]
+
+[badges]
+travis-ci = { repository = "lawliet89/rocket_cors" }
+
+[dependencies]
+log = "0.3"
+rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "aa51fe0" }
+serde = "1.0"
+serde_derive = "1.0"
+unicase="1.4"
+url = "1.5.1"
+url_serde = "0.2.0"
+
+[build-dependencies]
+ansi_term = "0.9"
+version_check = "0.1"
+
+[dev-dependencies]
+hyper = "0.10"
+rocket_codegen = { git = "https://github.com/SergioBenitez/Rocket", rev = "aa51fe0" }
+serde_json = "1.0"
