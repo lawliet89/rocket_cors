@@ -34,11 +34,15 @@ We currently tie this crate to revision [aa51fe0](https://github.com/SergioBenit
 <!-- Add the following to Cargo.toml:
 
 ```toml
-biscuit = "0.0.6"
+rocket_cors = "0.0.6"
 ``` -->
 
 To use the latest `master` branch, for example:
 
 ```toml
-biscuit = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
+rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
 ```
+
+## Reference
+
+- [W3C CORS Recommendation](https://www.w3.org/TR/cors/#resource-processing-model)
