@@ -105,6 +105,7 @@
 extern crate log;
 #[macro_use]
 extern crate rocket;
+// extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate unicase;
@@ -258,6 +259,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Url {
     }
 }
 
+
 /// The `Origin` request header used in CORS
 pub type Origin = Url;
 
@@ -388,17 +390,6 @@ pub struct Options {
     /// This is the `list of origins` in the
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
-    ///
-    /// This field defaults to `All`.
-    /// # Examples
-    /// ## Allow all origins
-    /// ```json
-    /// { "allowed_origins": null }
-    ///
-    /// ## Allow specific origins
-    ///
-    /// ```json
-    /// { "allowed_origins": ["http://127.0.0.1:8000/","https://foobar.com/"] }
     /// ```
     // #[serde(default)]
     pub allowed_origins: AllOrSome<HashSet<Url>>,
@@ -421,6 +412,7 @@ pub struct Options {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
+    // #[serde(default)]
     pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
@@ -431,6 +423,7 @@ pub struct Options {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
+    // #[serde(default)]
     pub allow_credentials: bool,
     /// The list of headers which are safe to expose to the API of a CORS API specification.
     /// This corresponds to the `Access-Control-Expose-Headers` responde header.
@@ -439,11 +432,13 @@ pub struct Options {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// This defaults to an empty set.
+    // #[serde(default)]
     pub expose_headers: HashSet<String>,
     /// The maximum time for which this CORS request maybe cached. This value is set as the
     /// `Access-Control-Max-Age` header.
     ///
     /// This defaults to `None` (unset).
+    // #[serde(default)]
     pub max_age: Option<usize>,
     /// If true, and the `allowed_origins` parameter is `All`, a wildcard
     /// `Access-Control-Allow-Origin` response header is sent, rather than the request’s
@@ -457,6 +452,7 @@ pub struct Options {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
+    // #[serde(default)]
     pub send_wildcard: bool,
 }
 
