@@ -27,7 +27,7 @@ In particular, `rocket_cors` is currently targetted for `nightly-2017-07-13`.
 Rocket > 0.3 is needed. At this moment, `0.3` is not released, and this crate will not be published
 to Crates.io until Rocket 0.3 is released to Crates.io.
 
-We currently tie this crate to revision [aa51fe0](https://github.com/SergioBenitez/Rocket/tree/aa51fe0) of Rocket.
+We currently tie this crate to revision [51a465f2cc88d537079133bcdfec37d029070dcd](https://github.com/SergioBenitez/Rocket/tree/51a465f2cc88d537079133bcdfec37d029070dcd) of Rocket.
 
 ## Installation
 
