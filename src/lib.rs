@@ -29,7 +29,7 @@
 //! to Crates.io until Rocket 0.3 is released to Crates.io.
 //!
 //! We currently tie this crate to revision
-//! [aa51fe0](https://github.com/SergioBenitez/Rocket/tree/aa51fe0) of Rocket.
+//! [51a465f2cc88d537079133bcdfec37d029070dcd](https://github.com/SergioBenitez/Rocket/tree/51a465f2cc88d537079133bcdfec37d029070dcd) of Rocket.
 //!
 //! ## Installation
 //!
