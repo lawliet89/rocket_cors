@@ -122,7 +122,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::request::{self, Request, FromRequest};
-use rocket::response::{self, Responder};
+use rocket::response;
 use rocket::http::{Method, Status};
 use rocket::Outcome;
 use unicase::UniCase;
@@ -131,7 +131,13 @@ use unicase::UniCase;
 #[macro_use]
 mod test_macros;
 
-/// CORS related error
+/// Errors during operations
+///
+/// This enum implements `rocket::response::Responder` which will return an appropriate status code
+/// while printing out the error in the console.
+/// Because these errors are usually the result of an error while trying to respond to a CORS
+/// request, CORS headers cannot be added to the response and your applications requesting CORS
+/// will not be able to see the status code.
 #[derive(Debug)]
 pub enum Error {
     /// The HTTP request header `Origin` is required but was not provided
@@ -201,7 +207,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl<'r> Responder<'r> for Error {
+impl<'r> response::Responder<'r> for Error {
     fn respond_to(self, _: &Request) -> Result<response::Response<'r>, Status> {
         error_!("CORS Error: {:?}", self);
         Err(match self {
@@ -374,7 +380,11 @@ impl AllOrSome<HashSet<Url>> {
     }
 }
 
-/// Configuration options to for building CORS preflight or actual responses.
+/// Responder and Fairing for CORS
+///
+/// This struct can be used as Fairing for Rocket, or as an ad-hoc responder for any CORS requests.
+/// You create a new copy of this struct by defining the configurations in the fields below.
+/// This struct can also be deserialized by serde.
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
@@ -474,6 +484,11 @@ impl Default for Options {
 }
 
 impl Options {
+    /// Wrap any Rocket response with the CORS responder
+    pub fn respond<'r, R: response::Responder<'r>>(&'r self, responder: R) -> Responder<'r, R> {
+        Responder::new(responder, self)
+    }
+
     fn default_allowed_methods() -> HashSet<Method> {
         vec![
             Method::Get,
@@ -486,40 +501,139 @@ impl Options {
         ].into_iter()
             .collect()
     }
+}
+
+/// A CORS Responder which will inspect the incoming requests and respond accoridingly.
+///
+/// If the wrapped `Responder` already has the `Access-Control-Allow-Origin` header set,
+/// this responder will leave the response untouched.
+/// This allows for chaining of several CORS responders.
+///
+/// Otherwise, the following headers may be set for the final Rocket `Response`, overwriting any
+/// existing headers defined:
+///
+/// - `Access-Control-Allow-Origin`
+/// - `Access-Control-Expose-Headers`
+/// - `Access-Control-Max-Age`
+/// - `Access-Control-Allow-Credentials`
+/// - `Access-Control-Allow-Methods`
+/// - `Access-Control-Allow-Headers`
+/// - `Vary`
+#[derive(Debug)]
+pub struct Responder<'r, R> {
+    responder: R,
+    options: &'r Options,
+}
+
+impl<'r, R: response::Responder<'r>> Responder<'r, R> {
+    fn new(responder: R, options: &'r Options) -> Self {
+        Self { responder, options }
+    }
+
+    /// Respond to a request
+    fn respond(self, request: &Request) -> response::Result<'r> {
+        match self.build_cors_response(request) {
+            Ok(response) => response,
+            Err(e) => response::Responder::respond_to(e, request),
+        }
+    }
+
+    /// Build a CORS response and merge with an existing `rocket::Response` for the request
+    fn build_cors_response(self, request: &Request) -> Result<response::Result<'r>, Error> {
+        let original_response = match self.responder.respond_to(request) {
+            Ok(response) => response,
+            Err(status) => return Ok(Err(status))
+        };
+
+        if Self::has_allow_origin(&original_response) {
+            return Ok(Ok(original_response));
+        }
+
+        // 1. If the Origin header is not present terminate this set of steps.
+        // The request is outside the scope of this specification.
+        let origin = Self::origin(request)?;
+        let origin = match origin {
+            None => {
+                // Not a CORS request
+                return Ok(Ok(original_response));
+            }
+            Some(origin) => origin,
+        };
+
+        // Check if the request verb is an OPTION or something else
+        let cors_response = match request.method() {
+            Method::Options => {
+                let method = Self::request_method(request)?;
+                let headers = Self::request_headers(request)?;
+                Self::preflight(&self.options, origin, method, headers)
+            }
+            _ => Self::actual_request(&self.options, origin),
+        }?;
+
+
+        // If the original response is an error status, we can turn it into an em
+
+        // TODO
+        Ok(Ok(Self::merge(
+            cors_response.build(),
+            original_response,
+        )))
+    }
+
+    /// Gets the `Origin` request header from the request
+    fn origin(request: &Request) -> Result<Option<Origin>, Error> {
+        match Origin::from_request(request) {
+            Outcome::Forward(()) => Ok(None),
+            Outcome::Success(origin) => Ok(Some(origin)),
+            Outcome::Failure((_, err)) => Err(err),
+        }
+    }
+
+    /// Gets the `Access-Control-Request-Method` request header from the request
+    fn request_method(request: &Request) -> Result<Option<AccessControlRequestMethod>, Error> {
+        match AccessControlRequestMethod::from_request(request) {
+            Outcome::Forward(()) => Ok(None),
+            Outcome::Success(method) => Ok(Some(method)),
+            Outcome::Failure((_, err)) => Err(err),
+        }
+    }
+
+    /// Gets the `Access-Control-Request-Headers` request header from the request
+    fn request_headers(request: &Request) -> Result<Option<AccessControlRequestHeaders>, Error> {
+        match AccessControlRequestHeaders::from_request(request) {
+            Outcome::Forward(()) => Ok(None),
+            Outcome::Success(geaders) => Ok(Some(geaders)),
+            Outcome::Failure((_, err)) => Err(err),
+        }
+    }
+
+    /// Checks if an existing Response already has the header `Access-Control-Allow-Origin`
+    fn has_allow_origin(response: &response::Response<'r>) -> bool {
+        response.headers().get("Access-Control-Allow-Origin").next() != None
+    }
 
     /// Construct a preflight response based on the options. Will return an `Err`
     /// if any of the preflight checks fail.
     ///
     /// This implementation references the
     /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-preflight-requests).
-    pub fn preflight<'r, R: Responder<'r>>(
-        &self,
-        responder: R,
-        origin: Option<Origin>,
+    fn preflight(
+        options: &Options,
+        origin: Origin,
         method: Option<AccessControlRequestMethod>,
         headers: Option<AccessControlRequestHeaders>,
-    ) -> Result<Response<R>, Error> {
+    ) -> Result<Response, Error> {
 
-        let response = Response::new(responder);
+        let response = Response::new();
 
         // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
-
-        // 1. If the Origin header is not present terminate this set of steps.
-        // The request is outside the scope of this specification.
-        let origin = match origin {
-            None => {
-                // Not a CORS request
-                return Ok(response);
-            }
-            Some(origin) => origin,
-        };
 
         // 2. If the value of the Origin header is not a case-sensitive match for any of the values
         // in list of origins do not set any additional headers and terminate this set of steps.
         let response = response.allowed_origin(
             &origin,
-            &self.allowed_origins,
-            self.send_wildcard,
+            &options.allowed_origins,
+            options.send_wildcard,
         )?;
 
         // 3. Let `method` be the value as result of parsing the Access-Control-Request-Method
@@ -540,13 +654,13 @@ impl Options {
         // 5. If method is not a case-sensitive match for any of the values in list of methods
         // do not set any additional headers and terminate this set of steps.
 
-        let response = response.allowed_methods(&method, &self.allowed_methods)?;
+        let response = response.allowed_methods(&method, &options.allowed_methods)?;
 
         // 6. If any of the header field-names is not a ASCII case-insensitive match for any of the
         // values in list of headers do not set any additional headers and terminate this set of
         // steps.
         let response = if let Some(headers) = headers {
-            response.allowed_headers(&headers, &self.allowed_headers)?
+            response.allowed_headers(&headers, &options.allowed_headers)?
         } else {
             response
         };
@@ -559,12 +673,12 @@ impl Options {
         // with either the value of the Origin header or the string "*" as value.
         // Note: The string "*" cannot be used for a resource that supports credentials.
 
-        let response = response.credentials(self.allow_credentials)?;
+        let response = response.credentials(options.allow_credentials)?;
 
         // 8. Optionally add a single Access-Control-Max-Age header
         // with as value the amount of seconds the user agent is allowed to cache the result of the
         // request.
-        let response = response.max_age(self.max_age);
+        let response = response.max_age(options.max_age);
 
         // 9. If method is a simple method this step may be skipped.
         // Add one or more Access-Control-Allow-Methods headers consisting of
@@ -591,27 +705,13 @@ impl Options {
         Ok(response)
     }
 
-    /// Respond to a request based on the settings.
+    /// Respond to an actual request based on the settings.
     /// If the `Origin` is not provided, then this request was not made by a browser and there is no
     /// CORS enforcement.
-    pub fn respond<'r, R: Responder<'r>>(
-        &self,
-        responder: R,
-        origin: Option<Origin>,
-    ) -> Result<Response<R>, Error> {
-        let response = Response::new(responder);
+    fn actual_request(options: &Options, origin: Origin) -> Result<Response, Error> {
+        let response = Response::new();
 
         // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
-
-        // 1. If the Origin header is not present terminate this set of steps.
-        // The request is outside the scope of this specification.
-        let origin = match origin {
-            None => {
-                // Not a CORS request
-                return Ok(response);
-            }
-            Some(origin) => origin,
-        };
 
         // 2. If the value of the Origin header is not a case-sensitive match for any of the values
         // in list of origins, do not set any additional headers and terminate this set of steps.
@@ -619,8 +719,8 @@ impl Options {
 
         let response = response.allowed_origin(
             &origin,
-            &self.allowed_origins,
-            self.send_wildcard,
+            &options.allowed_origins,
+            options.send_wildcard,
         )?;
 
         // 3. If the resource supports credentials add a single Access-Control-Allow-Origin header,
@@ -631,7 +731,7 @@ impl Options {
         // with either the value of the Origin header or the string "*" as value.
         // Note: The string "*" cannot be used for a resource that supports credentials.
 
-        let response = response.credentials(self.allow_credentials)?;
+        let response = response.credentials(options.allow_credentials)?;
 
         // 4. If the list of exposed headers is not empty add one or more
         // Access-Control-Expose-Headers headers, with as values the header field names given in
@@ -641,7 +741,8 @@ impl Options {
         // and url is a case-sensitive match for the URL of the resource.
 
         let response = response.exposed_headers(
-            self.expose_headers
+            options
+                .expose_headers
                 .iter()
                 .map(|s| &**s)
                 .collect::<Vec<&str>>()
@@ -649,18 +750,38 @@ impl Options {
         );
         Ok(response)
     }
+
+    /// Merge a `wrapped` Response with a `cors` response
+    ///
+    /// If the `wrapped` response has the `Access-Control-Allow-Origin` header already defined,
+    /// it will be left untouched. This allows for chaining of several CORS responders.
+    ///
+    /// Otherwise, the merging will be done according to the rules of `rocket::Response::merge`.
+    fn merge(
+        mut wrapped: response::Response<'r>,
+        cors: response::Response<'r>,
+    ) -> response::Response<'r> {
+
+        let existing_cors = {
+            wrapped.headers().get("Access-Control-Allow-Origin").next() == None
+        };
+
+        if existing_cors {
+            wrapped.merge(cors);
+        }
+
+        wrapped
+    }
 }
 
-/// A CORS Response which wraps another struct which implements `Responder`. You will typically
-/// use [`Options`] instead to verify and build the response instead of this directly.
-/// See module level documentation for usage examples.
-///
-/// If the wrapped `Responder` already has the `Access-Control-Allow-Origin` header set,
-/// this responder will leave the response untouched.
-/// This allows for chaining of several CORS responders.
-///
-/// Otherwise, the following headers may be set for the final Rocket `Response`, overwriting any
-/// existing headers defined:
+impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R> {
+    fn respond_to(self, request: &Request) -> response::Result<'r> {
+        self.respond(request)
+    }
+}
+
+
+/// A CORS Response which provides the following CORS headers:
 ///
 /// - `Access-Control-Allow-Origin`
 /// - `Access-Control-Expose-Headers`
@@ -670,8 +791,7 @@ impl Options {
 /// - `Access-Control-Allow-Headers`
 /// - `Vary`
 #[derive(Debug)]
-pub struct Response<R> {
-    responder: R,
+struct Response {
     allow_origin: Option<AllOrSome<String>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
@@ -681,14 +801,13 @@ pub struct Response<R> {
     vary_origin: bool,
 }
 
-impl<'r, R: Responder<'r>> Response<R> {
+impl Response {
     /// Consumes the responder and return an empty `Response`
-    fn new(responder: R) -> Self {
+    fn new() -> Self {
         Self {
             allow_origin: None,
             allow_headers: HashSet::new(),
             allow_methods: HashSet::new(),
-            responder,
             allow_credentials: false,
             expose_headers: HashSet::new(),
             max_age: None,
@@ -828,7 +947,7 @@ impl<'r, R: Responder<'r>> Response<R> {
 
     /// Builds a `rocket::Response` from this struct containing only the CORS headers.
     #[allow(unused_results)]
-    fn build(&self) -> response::Response<'r> {
+    fn build<'r>(&self) -> response::Response<'r> {
         let mut builder = response::Response::build();
 
         let origin = match self.allow_origin {
@@ -888,57 +1007,13 @@ impl<'r, R: Responder<'r>> Response<R> {
 
         builder.finalize()
     }
-
-    /// Merge a `wrapped` Response with a `cors` response
-    ///
-    /// If the `wrapped` response has the `Access-Control-Allow-Origin` header already defined,
-    /// it will be left untouched. This allows for chaining of several CORS responders.
-    ///
-    /// Otherwise, the merging will be done according to the rules of `rocket::Response::merge`.
-    fn merge(
-        mut wrapped: response::Response<'r>,
-        cors: response::Response<'r>,
-    ) -> response::Response<'r> {
-
-        let existing_cors = {
-            wrapped.headers().get("Access-Control-Allow-Origin").next() == None
-        };
-
-        if existing_cors {
-            wrapped.merge(cors);
-        }
-
-        wrapped
-    }
-
-    /// Finalize the Response by merging the CORS header with the wrapped `Responder
-    ///
-    /// If the original response has the `Access-Control-Allow-Origin` header already defined,
-    /// it will be left untouched.This allows for chaining of several CORS responders.
-    ///
-    /// Otherwise, the following headers may be set for the final Rocket `Response`, overwriting any
-    /// existing headers defined:
-    ///
-    /// - `Access-Control-Allow-Origin`
-    /// - `Access-Control-Expose-Headers`
-    /// - `Access-Control-Max-Age`
-    /// - `Access-Control-Allow-Credentials`
-    /// - `Access-Control-Allow-Methods`
-    /// - `Access-Control-Allow-Headers`
-    /// - `Vary`
-    fn finalize(self, request: &Request) -> response::Result<'r> {
-        let cors_response = self.build();
-        let original_response = self.responder.respond_to(request)?;
-
-        Ok(Self::merge(original_response, cors_response))
-    }
 }
 
-impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
-    fn respond_to(self, request: &Request) -> response::Result<'r> {
-        self.finalize(request)
-    }
-}
+// impl<'r> response::Responder<'r> for Response {
+//     fn respond_to(self, request: &Request) -> response::Result<'r> {
+//         self.build().respond_to(request)
+//     }
+// }
 
 #[cfg(test)]
 #[allow(unmounted_route)]
@@ -1489,4 +1564,38 @@ mod tests {
         let actual_header: Vec<_> = response.headers().get("X-Teapot-Make").collect();
         assert_eq!(expected_header, actual_header);
     }
+
+    // The following tests check that preflight checks are done properly
+
+    // fn make_cors_options() -> Options {
+    //     let (allowed_origins, failed_origins) =
+    //         AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    //     assert!(failed_origins.is_empty());
+
+    //     Options {
+    //         allowed_origins: allowed_origins,
+    //         allowed_methods: [Method::Get].iter().cloned().collect(),
+    //         allowed_headers: AllOrSome::Some(
+    //             ["Authorization"]
+    //                 .into_iter()
+    //                 .map(|s| s.to_string().into())
+    //                 .collect(),
+    //         ),
+    //         allow_credentials: true,
+    //         ..Default::default()
+    //     }
+    // }
+
+    // /// Tests that non CORS preflight are let through without modification
+    // #[test]
+    // fn preflight_missing_origins_are_let_through() {
+    //     let options = make_cors_options();
+    //     let client = make_client();
+    //     let request = client.get("/");
+
+    //     let response = options.preflight((), None, None, None).expect("not to fail");
+
+    //     let headers: Vec<_> = response.headers().iter().collect();
+    //     assert_eq!(headers.len(), 0);
+    // }
 }
