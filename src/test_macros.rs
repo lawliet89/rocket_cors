@@ -12,13 +12,6 @@ macro_rules! is_err {
     })
 }
 
-macro_rules! not_none {
-    ($e:expr) => (match $e {
-        Some(e) => e,
-        None => panic!("{} failed with None", stringify!($e)),
-    })
-}
-
 macro_rules! assert_matches {
     ($e: expr, $p: pat) => (assert_matches!($e, $p, ()));
     ($e: expr, $p: pat, $f: expr) => (match $e {
