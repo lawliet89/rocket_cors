@@ -15,12 +15,12 @@ use rocket::local::Client;
 use rocket_cors::*;
 
 #[options("/")]
-fn cors_options(options: State<'static, rocket_cors::Options>) -> Responder<'static, ()> {
-    rocket_cors::respond(options, ())
+fn cors_options(options: State<rocket_cors::Options>) -> Responder<&str> {
+    rocket_cors::respond(options, "")
 }
 
 #[get("/")]
-fn cors(options: State<'static, rocket_cors::Options>) -> Responder<'static, &'static str> {
+fn cors(options: State<rocket_cors::Options>) -> Responder<&str> {
     rocket_cors::respond(options, "Hello CORS")
 }
 
@@ -138,6 +138,7 @@ fn cors_get_check() {
     let req = client.get("/").header(origin_header).header(authorization);
 
     let mut response = req.dispatch();
+    println!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
