@@ -565,7 +565,7 @@ impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
     fn build_cors_response(self, request: &Request) -> Result<response::Result<'r>, Error> {
         let original_response = match self.responder.respond_to(request) {
             Ok(response) => response,
-            Err(status) => return Ok(Err(status)),
+            Err(status) => return Ok(Err(status)), // TODO: Handle this?
         };
 
         // Existing CORS response?
@@ -594,10 +594,6 @@ impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
             _ => Self::actual_request(&self.options, origin),
         }?;
 
-
-        // If the original response is an error status, we can turn it into an em
-
-        // TODO
         Ok(Ok(cors_response.build(original_response)))
     }
 
