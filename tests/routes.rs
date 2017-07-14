@@ -15,13 +15,13 @@ use rocket::local::Client;
 use rocket_cors::*;
 
 #[options("/")]
-fn cors_options(options: State<rocket_cors::Options>) -> Responder<()> {
-    options.respond(())
+fn cors_options(options: State<'static, rocket_cors::Options>) -> Responder<'static, ()> {
+    rocket_cors::respond(options, ())
 }
 
 #[get("/")]
-fn cors(options: State<rocket_cors::Options>) -> Responder<&'static str> {
-    options.respond("Hello CORS")
+fn cors(options: State<'static, rocket_cors::Options>) -> Responder<'static, &'static str> {
+    rocket_cors::respond(options, "Hello CORS")
 }
 
 fn make_cors_options() -> Options {

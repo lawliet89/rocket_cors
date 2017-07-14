@@ -121,10 +121,10 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use rocket::{Outcome, State};
+use rocket::http::{Method, Status};
 use rocket::request::{self, Request, FromRequest};
 use rocket::response;
-use rocket::http::{Method, Status};
-use rocket::Outcome;
 use unicase::UniCase;
 
 #[cfg(test)]
@@ -483,10 +483,18 @@ impl Default for Options {
     }
 }
 
+/// Ad-hoc per route CORS response to requests
+pub fn respond<'r, R: response::Responder<'r>>(
+    options: State<'r, Options>,
+    responder: R,
+) -> Responder<'r, R> {
+    options.inner().respond(responder)
+}
+
 impl Options {
     /// Wrap any `Rocket::Response` and respond with CORS headers.
     /// This is only used for ad-hoc route CORS response
-    pub fn respond<'r, R: response::Responder<'r>>(&'r self, responder: R) -> Responder<'r, R> {
+    fn respond<'r, R: response::Responder<'r>>(&'r self, responder: R) -> Responder<'r, R> {
         Responder::new(responder, self)
     }
 
