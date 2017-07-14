@@ -654,6 +654,21 @@ impl Options {
 /// A CORS Response which wraps another struct which implements `Responder`. You will typically
 /// use [`Options`] instead to verify and build the response instead of this directly.
 /// See module level documentation for usage examples.
+///
+/// If the wrapped `Responder` already has the `Access-Control-Allow-Origin` header set,
+/// this responder will leave the response untouched.
+/// This allows for chaining of several CORS responders.
+///
+/// Otherwise, the following headers may be set for the final Rocket `Response`, overwriting any
+/// existing headers defined:
+///
+/// - `Access-Control-Allow-Origin`
+/// - `Access-Control-Expose-Headers`
+/// - `Access-Control-Max-Age`
+/// - `Access-Control-Allow-Credentials`
+/// - `Access-Control-Allow-Methods`
+/// - `Access-Control-Allow-Headers`
+/// - `Vary`
 pub struct Response<R> {
     responder: R,
     allow_origin: Option<AllOrSome<String>>,
@@ -808,26 +823,23 @@ impl<'r, R: Responder<'r>> Response<R> {
             ),
         )
     }
-}
 
-impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
+    /// Builds a `rocket::Response` from this struct containing only the CORS headers.
     #[allow(unused_results)]
-    fn respond_to(self, request: &Request) -> response::Result<'r> {
-        use std::borrow::Cow;
-
-        let mut builder = response::Response::build_from(self.responder.respond_to(request)?);
+    fn build(&self) -> response::Response<'r> {
+        let mut builder = response::Response::build();
 
         let origin = match self.allow_origin {
             None => {
                 // This is not a CORS response
-                return Ok(builder.finalize());
+                return builder.finalize();
             }
-            Some(origin) => origin,
+            Some(ref origin) => origin,
         };
 
-        let origin: Cow<str> = match origin {
-            AllOrSome::All => Into::into("*"),
-            AllOrSome::Some(origin) => Into::into(origin),
+        let origin = match *origin {
+            AllOrSome::All => "*".to_string(),
+            AllOrSome::Some(ref origin) => origin.to_string(),
         };
 
         builder.raw_header("Access-Control-Allow-Origin", origin);
@@ -838,7 +850,7 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
 
         if !self.expose_headers.is_empty() {
             let headers: Vec<String> = self.expose_headers
-                .into_iter()
+                .iter()
                 .map(|s| s.deref().to_string())
                 .collect();
             let headers = headers.join(", ");
@@ -848,7 +860,7 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
 
         if !self.allow_headers.is_empty() {
             let headers: Vec<String> = self.allow_headers
-                .into_iter()
+                .iter()
                 .map(|s| s.deref().to_string())
                 .collect();
             let headers = headers.join(", ");
@@ -858,7 +870,7 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
 
 
         if !self.allow_methods.is_empty() {
-            let methods: Vec<_> = self.allow_methods.into_iter().map(|m| m.as_str()).collect();
+            let methods: Vec<_> = self.allow_methods.iter().map(|m| m.as_str()).collect();
             let methods = methods.join(", ");
 
             builder.raw_header("Access-Control-Allow-Methods", methods);
@@ -873,7 +885,57 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
             builder.raw_header("Vary", "Origin");
         }
 
-        Ok(builder.finalize())
+        builder.finalize()
+    }
+
+    /// Merge a `wrapped` Response with a `cors` response
+    ///
+    /// If the `wrapped` response has the `Access-Control-Allow-Origin` header already defined,
+    /// it will be left untouched. This allows for chaining of several CORS responders.
+    ///
+    /// Otherwise, the merging will be done according to the rules of `rocket::Response::merge`.
+    fn merge(
+        mut wrapped: response::Response<'r>,
+        cors: response::Response<'r>,
+    ) -> response::Response<'r> {
+
+        let existing_cors = {
+            wrapped.headers().get("Access-Control-Allow-Origin").next() == None
+        };
+
+        if existing_cors {
+            wrapped.merge(cors);
+        }
+
+        wrapped
+    }
+
+    /// Finalize the Response by merging the CORS header with the wrapped `Responder
+    ///
+    /// If the original response has the `Access-Control-Allow-Origin` header already defined,
+    /// it will be left untouched.This allows for chaining of several CORS responders.
+    ///
+    /// Otherwise, the following headers may be set for the final Rocket `Response`, overwriting any
+    /// existing headers defined:
+    ///
+    /// - `Access-Control-Allow-Origin`
+    /// - `Access-Control-Expose-Headers`
+    /// - `Access-Control-Max-Age`
+    /// - `Access-Control-Allow-Credentials`
+    /// - `Access-Control-Allow-Methods`
+    /// - `Access-Control-Allow-Headers`
+    /// - `Vary`
+    fn finalize(self, request: &Request) -> response::Result<'r> {
+        let cors_response = self.build();
+        let original_response = self.responder.respond_to(request)?;
+
+        Ok(Self::merge(original_response, cors_response))
+    }
+}
+
+impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
+    fn respond_to(self, request: &Request) -> response::Result<'r> {
+        self.finalize(request)
     }
 }
 
