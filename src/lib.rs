@@ -484,7 +484,8 @@ impl Default for Options {
 }
 
 impl Options {
-    /// Wrap any Rocket response with the CORS responder
+    /// Wrap any `Rocket::Response` and respond with CORS headers.
+    /// This is only used for ad-hoc route CORS response
     pub fn respond<'r, R: response::Responder<'r>>(&'r self, responder: R) -> Responder<'r, R> {
         Responder::new(responder, self)
     }
@@ -542,7 +543,7 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
     fn build_cors_response(self, request: &Request) -> Result<response::Result<'r>, Error> {
         let original_response = match self.responder.respond_to(request) {
             Ok(response) => response,
-            Err(status) => return Ok(Err(status))
+            Err(status) => return Ok(Err(status)),
         };
 
         if Self::has_allow_origin(&original_response) {
@@ -574,10 +575,7 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
         // If the original response is an error status, we can turn it into an em
 
         // TODO
-        Ok(Ok(Self::merge(
-            cors_response.build(),
-            original_response,
-        )))
+        Ok(Ok(Self::merge(cors_response.build(), original_response)))
     }
 
     /// Gets the `Origin` request header from the request
@@ -1134,7 +1132,7 @@ mod tests {
         let allowed_origins = AllOrSome::All;
         let send_wildcard = true;
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = not_err!(response.allowed_origin(
             &origin,
             &allowed_origins,
@@ -1161,7 +1159,7 @@ mod tests {
         let allowed_origins = AllOrSome::All;
         let send_wildcard = false;
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = not_err!(response.allowed_origin(
             &origin,
             &allowed_origins,
@@ -1195,7 +1193,7 @@ mod tests {
         assert!(failed_origins.is_empty());
         let send_wildcard = false;
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = not_err!(response.allowed_origin(
             &origin,
             &allowed_origins,
@@ -1231,7 +1229,7 @@ mod tests {
         assert!(failed_origins.is_empty());
         let send_wildcard = false;
 
-        let response = Response::new(());
+        let response = Response::new();
         let _ = response
             .allowed_origin(&origin, &allowed_origins, send_wildcard)
             .unwrap();
@@ -1240,7 +1238,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "CredentialsWithWildcardOrigin")]
     fn response_credentials_does_not_allow_wildcard_with_all_origins() {
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.any();
 
         let _ = response.credentials(true).unwrap();
@@ -1248,7 +1246,7 @@ mod tests {
 
     #[test]
     fn response_credentials_allows_specific_origins() {
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
 
         let response = response.credentials(true).expect(
@@ -1269,7 +1267,7 @@ mod tests {
     #[test]
     fn response_sets_exposed_headers_correctly() {
         let headers = vec!["Bar", "Baz", "Foo"];
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let response = response.exposed_headers(&headers);
 
@@ -1291,7 +1289,7 @@ mod tests {
 
     #[test]
     fn response_sets_max_age_correctly() {
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
 
         let response = response.max_age(Some(42));
@@ -1305,7 +1303,7 @@ mod tests {
 
     #[test]
     fn response_does_not_set_max_age_when_none() {
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
 
         let response = response.max_age(None);
@@ -1324,7 +1322,7 @@ mod tests {
         let allowed_headers = AllOrSome::All;
         let requested_headers = vec!["Bar", "Foo"];
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let response = response
             .allowed_headers(
@@ -1360,7 +1358,7 @@ mod tests {
 
         let method = "GET";
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let response = response
             .allowed_methods(
@@ -1399,7 +1397,7 @@ mod tests {
 
         let method = "DELETE";
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let _ = response
             .allowed_methods(
@@ -1416,7 +1414,7 @@ mod tests {
         let allowed_headers = vec!["Bar", "Baz", "Foo"];
         let requested_headers = vec!["Bar", "Foo"];
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let response = response
             .allowed_headers(
@@ -1452,7 +1450,7 @@ mod tests {
         let allowed_headers = vec!["Bar", "Baz", "Foo"];
         let requested_headers = vec!["Bar", "Foo", "Unknown"];
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.example.com", false);
         let _ = response
             .allowed_headers(
@@ -1470,7 +1468,7 @@ mod tests {
 
     #[test]
     fn response_does_not_build_if_origin_is_not_set() {
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.build();
 
         let headers: Vec<_> = response.headers().iter().collect();
@@ -1480,8 +1478,10 @@ mod tests {
     // Note: Correct operation of Response::build is tested in the tests above for each of the
     // individual headers
 
+    // Responder tests below
+
     #[test]
-    fn response_merges_correctly() {
+    fn responder_merges_correctly() {
         use std::io::Cursor;
         use rocket::http::Status;
 
@@ -1491,10 +1491,10 @@ mod tests {
             .sized_body(Cursor::new("Brewing the best coffee!"))
             .finalize();
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.acme.com", false);
 
-        let mut response = Response::<String>::merge(wrapped, response.build());
+        let mut response = Responder::<String>::merge(wrapped, response.build());
         assert_eq!(response.status(), Status::ImATeapot);
         assert_eq!(response.body_string(), Some("Brewing the best coffee!".to_string()));
 
@@ -1513,55 +1513,20 @@ mod tests {
     }
 
     #[test]
-    fn response_does_not_merge_existing_cors() {
+    fn responder_does_not_merge_existing_cors() {
         let wrapped = response::Response::build()
             .raw_header("Access-Control-Allow-Origin", "https://www.example.com")
             .finalize();
 
-        let response = Response::new(());
+        let response = Response::new();
         let response = response.origin("https://www.acme.com", false);
 
-        let response = Response::<()>::merge(wrapped, response.build());
+        let response = Responder::<()>::merge(wrapped, response.build());
         let expected_header = vec!["https://www.example.com"];
         let actual_header: Vec<_> = response
             .headers()
             .get("Access-Control-Allow-Origin")
             .collect();
-        assert_eq!(expected_header, actual_header);
-    }
-
-    #[test]
-    fn response_finalize_smoke_test() {
-        use std::io::Cursor;
-        use rocket::http::Status;
-
-        let wrapped = response::Response::build()
-            .status(Status::ImATeapot)
-            .raw_header("X-Teapot-Make", "Rocket")
-            .sized_body(Cursor::new("Brewing the best coffee!"))
-            .finalize();
-
-        let response = Response::new(wrapped);
-        let response = response.origin("https://www.acme.com", false);
-
-        let client = make_client();
-        let request = client.get("/");
-        let mut response = response.finalize(request.inner()).expect("not to fail");
-
-        assert_eq!(response.status(), Status::ImATeapot);
-        assert_eq!(response.body_string(), Some("Brewing the best coffee!".to_string()));
-
-        // Check CORS header
-        let expected_header = vec!["https://www.acme.com"];
-        let actual_header: Vec<_> = response
-            .headers()
-            .get("Access-Control-Allow-Origin")
-            .collect();
-        assert_eq!(expected_header, actual_header);
-
-        // Check other header
-        let expected_header = vec!["Rocket"];
-        let actual_header: Vec<_> = response.headers().get("X-Teapot-Make").collect();
         assert_eq!(expected_header, actual_header);
     }
 
