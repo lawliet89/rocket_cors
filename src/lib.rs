@@ -117,7 +117,6 @@ extern crate hyper;
 use std::collections::{HashSet, HashMap};
 use std::error;
 use std::fmt;
-use std::hash::Hash;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -333,23 +332,23 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
     }
 }
 
-/// An enum signifying that some set of type T is allowed, or `All` (everything is allowed).
+/// An enum signifying that some of type T is allowed, or `All` (everything is allowed).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum AllOrSome<T: Hash + Eq> {
+pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.
     All,
-    /// Only some set of `T` is allowed
-    Some(HashSet<T>),
+    /// Only some of `T` is allowed
+    Some(T),
 }
 
-impl<T: Hash + Eq> Default for AllOrSome<T> {
+impl<T> Default for AllOrSome<T> {
     fn default() -> Self {
         AllOrSome::All
     }
 }
 
-impl AllOrSome<Url> {
+impl AllOrSome<HashSet<Url>> {
     /// New `AllOrSome` from a list of URL strings.
     /// Returns a tuple where the first element is the struct `AllOrSome`,
     /// and the second element
@@ -395,50 +394,14 @@ pub struct Options {
     /// ## Allow all origins
     /// ```json
     /// { "allowed_origins": null }
-    /// ```
-    /// ```
-    /// extern crate rocket_cors;
-    /// #[macro_use]
-    /// extern crate serde_derive;
-    /// extern crate serde_json;
     ///
-    /// use rocket_cors::*;
-    ///
-    /// # fn main() {
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Test {
-    ///     allowed_origins: AllOrSome<Url>
-    /// }
-    ///
-    /// let json = r#"{ "allowed_origins": null }"#;
-    /// let deserialized: Test = serde_json::from_str(json).unwrap();
-    /// # }
-    /// ```
     /// ## Allow specific origins
     ///
     /// ```json
     /// { "allowed_origins": ["http://127.0.0.1:8000/","https://foobar.com/"] }
     /// ```
-    ///
-    /// ```
-    /// extern crate rocket_cors;
-    /// #[macro_use]
-    /// extern crate serde_derive;
-    /// extern crate serde_json;
-    ///
-    /// use rocket_cors::*;
-    ///
-    /// # fn main() {
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Test {
-    ///     allowed_origins: AllOrSome<Url>
-    /// }
-    ///
-    /// let json = r#"{ "allowed_origins": ["http://127.0.0.1:8000/","https://foobar.com/"] }"#;
-    /// let deserialized: Test = serde_json::from_str(json).unwrap();
-    /// # }
     // #[serde(default)]
-    pub allowed_origins: AllOrSome<Url>,
+    pub allowed_origins: AllOrSome<HashSet<Url>>,
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
     ///
@@ -458,7 +421,7 @@ pub struct Options {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
-    pub allowed_headers: AllOrSome<HeaderFieldName>,
+    pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
     /// This allows cookies and credentials to be submitted across domains.
@@ -530,23 +493,35 @@ impl Options {
     ///
     /// This implementation references the
     /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-preflight-requests).
-    pub fn preflight(
+    pub fn preflight<'r, R: Responder<'r>>(
         &self,
+        responder: R,
         origin: Option<Origin>,
         method: Option<AccessControlRequestMethod>,
         headers: Option<AccessControlRequestHeaders>,
-    ) -> Result<Response<()>, Error> {
+    ) -> Result<Response<R>, Error> {
+
+        let response = Response::new(responder);
 
         // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
 
         // 1. If the Origin header is not present terminate this set of steps.
         // The request is outside the scope of this specification.
-        let origin = origin.ok_or_else(|| Error::MissingOrigin)?;
+        let origin = match origin {
+            None => {
+                // Not a CORS request
+                return Ok(response);
+            }
+            Some(origin) => origin,
+        };
 
         // 2. If the value of the Origin header is not a case-sensitive match for any of the values
         // in list of origins do not set any additional headers and terminate this set of steps.
-        let response =
-            Response::<()>::allowed_origin((), &origin, &self.allowed_origins, self.send_wildcard)?;
+        let response = response.allowed_origin(
+            &origin,
+            &self.allowed_origins,
+            self.send_wildcard,
+        )?;
 
         // 3. Let `method` be the value as result of parsing the Access-Control-Request-Method
         // header.
@@ -628,18 +603,25 @@ impl Options {
         responder: R,
         origin: Option<Origin>,
     ) -> Result<Response<R>, Error> {
+        let response = Response::new(responder);
+
         // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
 
         // 1. If the Origin header is not present terminate this set of steps.
         // The request is outside the scope of this specification.
-        let origin = origin.ok_or_else(|| Error::MissingOrigin)?;
+        let origin = match origin {
+            None => {
+                // Not a CORS request
+                return Ok(response);
+            }
+            Some(origin) => origin,
+        };
 
         // 2. If the value of the Origin header is not a case-sensitive match for any of the values
         // in list of origins, do not set any additional headers and terminate this set of steps.
         // Always matching is acceptable since the list of origins can be unbounded.
 
-        let response = Response::<R>::allowed_origin(
-            responder,
+        let response = response.allowed_origin(
             &origin,
             &self.allowed_origins,
             self.send_wildcard,
@@ -678,7 +660,7 @@ impl Options {
 /// See module level documentation for usage examples.
 pub struct Response<R> {
     responder: R,
-    allow_origin: String,
+    allow_origin: Option<AllOrSome<String>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
     allow_credentials: bool,
@@ -688,26 +670,39 @@ pub struct Response<R> {
 }
 
 impl<'r, R: Responder<'r>> Response<R> {
-    /// Consumes the responder and origin and returns basic CORS
-    fn origin(responder: R, origin: &str, vary_origin: bool) -> Self {
+    /// Consumes the responder and return an empty `Response`
+    fn new(responder: R) -> Self {
         Self {
-            allow_origin: origin.to_string(),
+            allow_origin: None,
             allow_headers: HashSet::new(),
             allow_methods: HashSet::new(),
-            responder: responder,
+            responder,
             allow_credentials: false,
             expose_headers: HashSet::new(),
             max_age: None,
-            vary_origin,
+            vary_origin: false,
         }
     }
+
+    /// Consumes the `Response` and return an altered response with origin and `vary_origin` set
+    fn origin(mut self, origin: &str, vary_origin: bool) -> Self {
+        self.allow_origin = Some(AllOrSome::Some(origin.to_string()));
+        self.vary_origin = vary_origin;
+        self
+    }
+
+    /// Consumes the `Response` and return an altered response with origin set to "*"
+    fn any(self) -> Self {
+        self.origin("*", false)
+    }
+
     /// Consumes the responder and based on the provided list of allowed origins,
     /// check if the requested origin is allowed.
     /// Useful for pre-flight and during requests
     fn allowed_origin(
-        responder: R,
+        self,
         origin: &Origin,
-        allowed_origins: &AllOrSome<Url>,
+        allowed_origins: &AllOrSome<HashSet<Url>>,
         send_wildcard: bool,
     ) -> Result<Self, Error> {
         let origin = origin.origin().unicode_serialization();
@@ -715,9 +710,9 @@ impl<'r, R: Responder<'r>> Response<R> {
             // Always matching is acceptable since the list of origins can be unbounded.
             AllOrSome::All => {
                 if send_wildcard {
-                    Ok(Self::any(responder))
+                    Ok(self.any())
                 } else {
-                    Ok(Self::origin(responder, &origin, true))
+                    Ok(self.origin(&origin, true))
                 }
             }
             AllOrSome::Some(ref allowed_origins) => {
@@ -728,21 +723,17 @@ impl<'r, R: Responder<'r>> Response<R> {
                 let _ = allowed_origins.get(&origin).ok_or_else(
                     || Error::OriginNotAllowed,
                 )?;
-                Ok(Self::origin(responder, &origin, false))
+                Ok(self.origin(&origin, false))
             }
         }
     }
 
-    /// Consumes responder and returns CORS with any origin
-    fn any(responder: R) -> Self {
-        Self::origin(responder, "*", false)
-    }
-
-    /// Consumes the CORS, set allow_credentials to
-    /// new value and returns changed CORS
+    /// Consumes the Response and validate whether credentials can be allowed
     fn credentials(mut self, value: bool) -> Result<Self, Error> {
-        if value && self.allow_origin == "*" {
-            Err(Error::CredentialsWithWildcardOrigin)?;
+        if value {
+            if let Some(AllOrSome::All) = self.allow_origin {
+                Err(Error::CredentialsWithWildcardOrigin)?;
+            }
         }
 
         self.allow_credentials = value;
@@ -798,7 +789,7 @@ impl<'r, R: Responder<'r>> Response<R> {
     fn allowed_headers(
         self,
         headers: &AccessControlRequestHeaders,
-        allowed_headers: &AllOrSome<HeaderFieldName>,
+        allowed_headers: &AllOrSome<HashSet<HeaderFieldName>>,
     ) -> Result<Self, Error> {
         let &AccessControlRequestHeaders(ref headers) = headers;
 
@@ -824,15 +815,29 @@ impl<'r, R: Responder<'r>> Response<R> {
 }
 
 impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
+    #[allow(unused_results)]
     fn respond_to(self, request: &Request) -> response::Result<'r> {
-        let mut response = response::Response::build_from(self.responder.respond_to(request)?)
-            .raw_header("Access-Control-Allow-Origin", self.allow_origin)
-            .finalize();
+        use std::borrow::Cow;
+
+        let mut builder = response::Response::build_from(self.responder.respond_to(request)?);
+
+        let origin = match self.allow_origin {
+            None => {
+                // This is not a CORS response
+                return Ok(builder.finalize());
+            }
+            Some(origin) => origin,
+        };
+
+        let origin: Cow<str> = match origin {
+            AllOrSome::All => Into::into("*"),
+            AllOrSome::Some(origin) => Into::into(origin),
+        };
+
+        builder.raw_header("Access-Control-Allow-Origin", origin);
 
         if self.allow_credentials {
-            response.set_raw_header("Access-Control-Allow-Credentials", "true");
-        } else {
-            response.set_raw_header("Access-Control-Allow-Credentials", "false");
+            builder.raw_header("Access-Control-Allow-Credentials", "true");
         }
 
         if !self.expose_headers.is_empty() {
@@ -842,7 +847,7 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
                 .collect();
             let headers = headers.join(", ");
 
-            response.set_raw_header("Access-Control-Expose-Headers", headers);
+            builder.raw_header("Access-Control-Expose-Headers", headers);
         }
 
         if !self.allow_headers.is_empty() {
@@ -852,7 +857,7 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
                 .collect();
             let headers = headers.join(", ");
 
-            response.set_raw_header("Access-Control-Allow-Headers", headers);
+            builder.raw_header("Access-Control-Allow-Headers", headers);
         }
 
 
@@ -860,19 +865,19 @@ impl<'r, R: Responder<'r>> Responder<'r> for Response<R> {
             let methods: Vec<_> = self.allow_methods.into_iter().map(|m| m.as_str()).collect();
             let methods = methods.join(", ");
 
-            response.set_raw_header("Access-Control-Allow-Methods", methods);
+            builder.raw_header("Access-Control-Allow-Methods", methods);
         }
 
         if self.max_age.is_some() {
             let max_age = self.max_age.unwrap();
-            response.set_raw_header("Access-Control-Max-Age", max_age.to_string());
+            builder.raw_header("Access-Control-Max-Age", max_age.to_string());
         }
 
         if self.vary_origin {
-            response.set_raw_header("Vary", "Origin");
+            builder.raw_header("Vary", "Origin");
         }
 
-        Ok(response)
+        Ok(builder.finalize())
     }
 }
 
@@ -978,7 +983,7 @@ X-Ping, accept-language"#;
     #[get("/any")]
     #[cfg_attr(feature = "clippy_lints", allow(needless_pass_by_value))]
     fn any() -> Response<&'static str> {
-        Response::any("Hello, world!")
+        Response::new("Hello, world!").any()
     }
 
     #[test]
@@ -1007,7 +1012,7 @@ X-Ping, accept-language"#;
         headers: Option<AccessControlRequestHeaders>,
         options: State<Options>,
     ) -> Result<Response<()>, Error> {
-        options.preflight(origin, method, headers)
+        options.preflight((), origin, method, headers)
     }
 
     #[get("/")]
@@ -1147,7 +1152,7 @@ X-Ping, accept-language"#;
         );
 
         let response = req.dispatch();
-        assert_eq!(response.status(), Status::Forbidden);
+        assert_eq!(response.status(), Status::Ok);
     }
 
     #[test]
