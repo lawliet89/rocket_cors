@@ -28,7 +28,7 @@ fn request_headers(
     format!("{}\n{}\n{}", origin, method, headers.join(", "))
 }
 
-/// Tests that all the headers are parsed correcly in a HTTP request
+/// Tests that all the request headers are parsed correcly in a HTTP request
 #[test]
 fn request_headers_round_trip_smoke_test() {
     let rocket = rocket::ignite().mount("/", routes![request_headers]);
