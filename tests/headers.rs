@@ -10,7 +10,7 @@ use std::str::FromStr;
 
 use rocket::local::Client;
 use rocket::http::{Header, Status};
-use rocket_cors::*;
+use rocket_cors::headers::*;
 
 #[get("/request_headers")]
 fn request_headers(
