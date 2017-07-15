@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::{self, Outcome};
-use rocket::http::{Method, Status};
+use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use unicase::UniCase;
 use url;
@@ -72,13 +72,13 @@ pub type Origin = Url;
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that the header is passed in correctly.
 #[derive(Debug)]
-pub struct AccessControlRequestMethod(pub Method);
+pub struct AccessControlRequestMethod(pub ::Method);
 
 impl FromStr for AccessControlRequestMethod {
     type Err = rocket::Error;
 
     fn from_str(method: &str) -> Result<Self, Self::Err> {
-        Ok(AccessControlRequestMethod(Method::from_str(method)?))
+        Ok(AccessControlRequestMethod(::Method::from_str(method)?))
     }
 }
 
@@ -149,7 +149,6 @@ mod tests {
     use hyper;
     use rocket;
     use rocket::local::Client;
-    use rocket::http::Method;
 
     use super::*;
 
@@ -194,11 +193,17 @@ mod tests {
     fn request_method_conversion() {
         let method = "POST";
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
-        assert_matches!(parsed_method, AccessControlRequestMethod(Method::Post));
+        assert_matches!(
+            parsed_method,
+            AccessControlRequestMethod(::Method(rocket::http::Method::Post))
+        );
 
         let method = "options";
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
-        assert_matches!(parsed_method, AccessControlRequestMethod(Method::Options));
+        assert_matches!(
+            parsed_method,
+            AccessControlRequestMethod(::Method(rocket::http::Method::Options))
+        );
 
         let method = "INVALID";
         let _ = is_err!(AccessControlRequestMethod::from_str(method));

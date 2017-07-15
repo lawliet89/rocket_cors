@@ -97,7 +97,7 @@
 extern crate log;
 #[macro_use]
 extern crate rocket;
-// extern crate serde;
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate unicase;
@@ -106,6 +106,8 @@ extern crate url_serde;
 
 #[cfg(test)]
 extern crate hyper;
+#[cfg(test)]
+extern crate serde_test;
 
 #[cfg(test)]
 #[macro_use]
@@ -124,9 +126,10 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::{Outcome, State};
-use rocket::http::{Method, Status};
+use rocket::http::{self, Status};
 use rocket::request::{Request, FromRequest};
 use rocket::response;
+use serde::{Serialize, Deserialize};
 
 use headers::{HeaderFieldName, HeaderFieldNamesSet, Origin, AccessControlRequestHeaders,
               AccessControlRequestMethod};
@@ -255,6 +258,78 @@ impl AllOrSome<HashSet<Url>> {
         let ok_set = ok_set.into_iter().map(|(_, r)| r.unwrap()).collect();
 
         (AllOrSome::Some(ok_set), error_map)
+    }
+}
+
+/// A newtype wrapper around `rocket::http::Method` to allow for serde deserialization
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Method(http::Method);
+
+impl FromStr for Method {
+    type Err = rocket::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let method = http::Method::from_str(s)?;
+        Ok(Method(method))
+    }
+}
+
+impl Deref for Method {
+    type Target = http::Method;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<http::Method> for Method {
+    fn from(method: http::Method) -> Self {
+        Method(method)
+    }
+}
+
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl Serialize for Method {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Method {
+    fn deserialize<D>(deserializer: D) -> Result<Method, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, Visitor};
+
+        struct MethodVisitor;
+        impl<'de> Visitor<'de> for MethodVisitor {
+            type Value = Method;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing a HTTP Verb")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match Self::Value::from_str(s) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(de::Error::custom(format!("{:?}", e))),
+                }
+            }
+        }
+
+        deserializer.deserialize_string(MethodVisitor)
     }
 }
 
@@ -389,6 +464,8 @@ impl Cors {
     }
 
     fn default_allowed_methods() -> HashSet<Method> {
+        use rocket::http::Method;
+
         vec![
             Method::Get,
             Method::Head,
@@ -398,6 +475,7 @@ impl Cors {
             Method::Patch,
             Method::Delete,
         ].into_iter()
+            .map(From::from)
             .collect()
     }
 }
@@ -468,7 +546,7 @@ impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
 
         // Check if the request verb is an OPTION or something else
         let cors_response = match request.method() {
-            Method::Options => {
+            http::Method::Options => {
                 let method = Self::request_method(request)?;
                 let headers = Self::request_headers(request)?;
                 Self::preflight(&self.options, origin, method, headers)
@@ -905,7 +983,7 @@ impl Response {
 #[allow(unmounted_route)]
 mod tests {
     use std::str::FromStr;
-    use rocket::http::Method;
+    use http::Method;
     use super::*;
 
     // The following tests check `Response`'s validation
@@ -1139,6 +1217,7 @@ mod tests {
             Method::Head,
             Method::Post,
         ].into_iter()
+            .map(From::from)
             .collect();
 
         let method = "GET";
@@ -1178,6 +1257,7 @@ mod tests {
             Method::Head,
             Method::Post,
         ].into_iter()
+            .map(From::from)
             .collect();
 
         let method = "DELETE";
@@ -1291,6 +1371,28 @@ mod tests {
         assert!(response.headers().get("Access-Control-Max-Age").next().is_none());
 
 
+    }
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct MethodTest {
+        method: ::Method,
+    }
+
+    #[test]
+    fn method_serde_roundtrip() {
+        use serde_test::{Token, assert_tokens};
+
+        let test = MethodTest { method: From::from(http::Method::Get) };
+
+        assert_tokens(
+            &test,
+            &[
+                Token::Struct { name: "MethodTest", len: 1 },
+                Token::Str("method"),
+                Token::Str("GET"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     // The following tests check that preflight checks are done properly

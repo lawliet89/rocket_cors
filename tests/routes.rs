@@ -30,7 +30,7 @@ fn make_cors_options() -> Cors {
 
     Cors {
         allowed_origins: allowed_origins,
-        allowed_methods: [Method::Get].iter().cloned().collect(),
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllOrSome::Some(
             ["Authorization"]
                 .into_iter()
@@ -48,7 +48,7 @@ fn smoke_test() {
     assert!(failed_origins.is_empty());
     let cors_options = rocket_cors::Cors {
         allowed_origins: allowed_origins,
-        allowed_methods: [Method::Get].iter().cloned().collect(),
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllOrSome::Some(
             ["Authorization"]
                 .iter()
