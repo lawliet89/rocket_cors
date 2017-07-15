@@ -12,7 +12,10 @@ use unicase::UniCase;
 use url;
 use url_serde;
 
+/// A case insensitive header name
 pub(crate) type HeaderFieldName = UniCase<String>;
+
+/// A set of case insensitive header names
 pub(crate) type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 
 /// A wrapped `url::Url` to allow for deserialization

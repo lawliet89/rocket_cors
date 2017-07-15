@@ -342,7 +342,7 @@ impl<'de> Deserialize<'de> for Method {
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
@@ -360,7 +360,7 @@ pub struct Cors {
     /// Defaults to `All`.
     ///
     /// ```
-    // #[serde(default)]
+    #[serde(default)]
     pub allowed_origins: AllOrSome<HashSet<Url>>,
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
@@ -369,7 +369,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
-    // #[serde(default = "Cors::default_allowed_methods")]
+    #[serde(default = "Cors::default_allowed_methods")]
     pub allowed_methods: HashSet<Method>,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
@@ -381,7 +381,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
-    // #[serde(default)]
+    #[serde(default)]
     pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
@@ -392,7 +392,7 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    // #[serde(default)]
+    #[serde(default)]
     pub allow_credentials: bool,
     /// The list of headers which are safe to expose to the API of a CORS API specification.
     /// This corresponds to the `Access-Control-Expose-Headers` responde header.
@@ -401,13 +401,13 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// This defaults to an empty set.
-    // #[serde(default)]
+    #[serde(default)]
     pub expose_headers: HashSet<String>,
     /// The maximum time for which this CORS request maybe cached. This value is set as the
     /// `Access-Control-Max-Age` header.
     ///
     /// This defaults to `None` (unset).
-    // #[serde(default)]
+    #[serde(default)]
     pub max_age: Option<usize>,
     /// If true, and the `allowed_origins` parameter is `All`, a wildcard
     /// `Access-Control-Allow-Origin` response header is sent, rather than the request’s
@@ -421,7 +421,7 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    // #[serde(default)]
+    #[serde(default)]
     pub send_wildcard: bool,
 }
 
