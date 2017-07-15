@@ -336,6 +336,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
 }
 
 /// An enum signifying that some of type T is allowed, or `All` (everything is allowed).
+///
+/// `Default` is implemented for this enum and is `All`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AllOrSome<T> {
@@ -372,9 +374,10 @@ impl AllOrSome<HashSet<Url>> {
     }
 }
 
-/// Responder and Fairing for CORS
+/// Responder generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
 ///
 /// This struct can be used as Fairing for Rocket, or as an ad-hoc responder for any CORS requests.
+///
 /// You create a new copy of this struct by defining the configurations in the fields below.
 /// This struct can also be deserialized by serde.
 ///
@@ -394,6 +397,8 @@ pub struct Cors {
     ///
     /// This is the `list of origins` in the
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
+    ///
+    /// Defaults to `All`.
     ///
     /// ```
     // #[serde(default)]
@@ -513,7 +518,8 @@ impl Cors {
     }
 }
 
-/// A CORS Responder which will inspect the incoming requests and respond accordingly.
+/// A CORS [Responder](https://rocket.rs/guide/responses/#responder)
+/// which will inspect the incoming requests and respond accordingly.
 ///
 /// If the wrapped `Responder` already has the `Access-Control-Allow-Origin` header set,
 /// this responder will leave the response untouched.
