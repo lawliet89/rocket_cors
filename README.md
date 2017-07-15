@@ -13,28 +13,24 @@ Cross-origin resource sharing (CORS) for [Rocket](https://rocket.rs/) applicatio
 ## Requirements
 
 - Nightly Rust
-- Rocket > 0.3
+- Rocket >= 0.3
 
 ### Nightly Rust
 
-Rocket requires nightly Rust. You should probably install Rust with [rustup](https://www.rustup.rs/), then override the code directory to use nightly instead of stable. See
+Rocket requires nightly Rust. You should probably install Rust with
+[rustup](https://www.rustup.rs/), then override the code directory to use nightly instead of stable.
+See
 [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
 
-In particular, `rocket_cors` is currently targetted for `nightly-2017-07-13`.
-
-### Rocket > 0.3
-
-Rocket > 0.3 is needed. At this moment, `0.3` is not released, and this crate will not be published
-to Crates.io until Rocket 0.3 is released to Crates.io.
-
-We currently tie this crate to revision [51a465f2cc88d537079133bcdfec37d029070dcd](https://github.com/SergioBenitez/Rocket/tree/51a465f2cc88d537079133bcdfec37d029070dcd) of Rocket.
+In particular, `rocket_cors` is currently targetted for `nightly-2017-07-13`. Newer nightlies
+might work, but it's not guaranteed.
 
 ## Installation
 
 <!-- Add the following to Cargo.toml:
 
 ```toml
-rocket_cors = "0.0.6"
+rocket_cors = "0.1.0"
 ``` -->
 
 To use the latest `master` branch, for example:
