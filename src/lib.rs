@@ -11,7 +11,7 @@
 //! ## Requirements
 //!
 //! - Nightly Rust
-//! - Rocket > 0.3
+//! - Rocket >= 0.3
 //!
 //! ### Nightly Rust
 //!
@@ -151,7 +151,7 @@ pub enum Error {
     HeadersNotAllowed,
     /// Credentials are allowed, but the Origin is set to "*". This is not allowed by W3C
     ///
-    /// This is a misconfiguration. Check the docuemntation for `Options`.
+    /// This is a misconfiguration. Check the docuemntation for `Cors`.
     CredentialsWithWildcardOrigin,
 }
 
@@ -381,7 +381,7 @@ impl AllOrSome<HashSet<Url>> {
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
 #[derive(Clone, Debug)]
-pub struct Options {
+pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
     ///
@@ -405,7 +405,7 @@ pub struct Options {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
-    // #[serde(default = "Options::default_allowed_methods")]
+    // #[serde(default = "Cors::default_allowed_methods")]
     pub allowed_methods: HashSet<Method>,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
@@ -461,7 +461,7 @@ pub struct Options {
     pub send_wildcard: bool,
 }
 
-impl Default for Options {
+impl Default for Cors {
     fn default() -> Self {
         Self {
             allowed_origins: Default::default(),
@@ -483,13 +483,13 @@ impl Default for Options {
 /// possible to have such a reference.
 /// See [this PR on Rocket](https://github.com/SergioBenitez/Rocket/pull/345).
 pub fn respond<'a, 'r: 'a, R: response::Responder<'r>>(
-    options: State<'a, Options>,
+    options: State<'a, Cors>,
     responder: R,
 ) -> Responder<'a, 'r, R> {
     options.inner().respond(responder)
 }
 
-impl Options {
+impl Cors {
     /// Wrap any `Rocket::Response` and respond with CORS headers.
     /// This is only used for ad-hoc route CORS response
     fn respond<'a, 'r: 'a, R: response::Responder<'r>>(
@@ -513,7 +513,7 @@ impl Options {
     }
 }
 
-/// A CORS Responder which will inspect the incoming requests and respond accoridingly.
+/// A CORS Responder which will inspect the incoming requests and respond accordingly.
 ///
 /// If the wrapped `Responder` already has the `Access-Control-Allow-Origin` header set,
 /// this responder will leave the response untouched.
@@ -532,12 +532,12 @@ impl Options {
 #[derive(Debug)]
 pub struct Responder<'a, 'r: 'a, R> {
     responder: R,
-    options: &'a Options,
+    options: &'a Cors,
     marker: PhantomData<response::Responder<'r>>,
 }
 
 impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
-    fn new(responder: R, options: &'a Options) -> Self {
+    fn new(responder: R, options: &'a Cors) -> Self {
         Self {
             responder,
             options,
@@ -627,7 +627,7 @@ impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
     /// This implementation references the
     /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-preflight-requests).
     fn preflight(
-        options: &Options,
+        options: &Cors,
         origin: Origin,
         method: Option<AccessControlRequestMethod>,
         headers: Option<AccessControlRequestHeaders>,
@@ -717,7 +717,7 @@ impl<'a, 'r: 'a, R: response::Responder<'r>> Responder<'a, 'r, R> {
     /// Respond to an actual request based on the settings.
     /// If the `Origin` is not provided, then this request was not made by a browser and there is no
     /// CORS enforcement.
-    fn actual_request(options: &Options, origin: Origin) -> Result<Response, Error> {
+    fn actual_request(options: &Cors, origin: Origin) -> Result<Response, Error> {
         let response = Response::new();
 
         // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
@@ -1508,12 +1508,12 @@ mod tests {
 
     // The following tests check that preflight checks are done properly
 
-    // fn make_cors_options() -> Options {
+    // fn make_cors_options() -> Cors {
     //     let (allowed_origins, failed_origins) =
     //         AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     //     assert!(failed_origins.is_empty());
 
-    //     Options {
+    //     Cors {
     //         allowed_origins: allowed_origins,
     //         allowed_methods: [Method::Get].iter().cloned().collect(),
     //         allowed_headers: AllOrSome::Some(

@@ -15,20 +15,20 @@ use rocket::local::Client;
 use rocket_cors::*;
 
 #[options("/")]
-fn cors_options(options: State<rocket_cors::Options>) -> Responder<&str> {
+fn cors_options(options: State<rocket_cors::Cors>) -> Responder<&str> {
     rocket_cors::respond(options, "")
 }
 
 #[get("/")]
-fn cors(options: State<rocket_cors::Options>) -> Responder<&str> {
+fn cors(options: State<rocket_cors::Cors>) -> Responder<&str> {
     rocket_cors::respond(options, "Hello CORS")
 }
 
-fn make_cors_options() -> Options {
+fn make_cors_options() -> Cors {
     let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    Options {
+    Cors {
         allowed_origins: allowed_origins,
         allowed_methods: [Method::Get].iter().cloned().collect(),
         allowed_headers: AllOrSome::Some(
@@ -46,7 +46,7 @@ fn make_cors_options() -> Options {
 fn smoke_test() {
     let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
-    let cors_options = rocket_cors::Options {
+    let cors_options = rocket_cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: [Method::Get].iter().cloned().collect(),
         allowed_headers: AllOrSome::Some(
