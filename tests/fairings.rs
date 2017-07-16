@@ -37,9 +37,9 @@ fn make_cors_options() -> Cors {
 }
 
 fn rocket() -> rocket::Rocket {
-    rocket::ignite()
-        .mount("/", routes![cors])
-        .attach(make_cors_options())
+    rocket::ignite().mount("/", routes![cors]).attach(
+        make_cors_options(),
+    )
 }
 
 #[test]
