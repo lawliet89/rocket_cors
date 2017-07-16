@@ -433,7 +433,42 @@ impl fairing::Fairing for Cors {
         }
     }
 
-    fn on_response(&self, _: &Request, _: &mut rocket::Response) {}
+    fn on_response(&self, request: &Request, response: &mut rocket::Response) {
+        use rocket::response::Responder;
+
+        // Build and merge CORS response
+        match build_cors_response(self, request, response) {
+            Err(err) => {
+                // CORS error -- overwrite the original response
+                let error_response = match err.respond_to(request) {
+                    Err(err) => {
+                        unreachable!(
+                            "Should not happen! The Error responder does not Err: {:?}",
+                            err
+                        )
+                    }
+                    Ok(error_response) => error_response,
+                };
+                response.merge(error_response)
+            }
+            Ok(()) => {
+                // If this was an OPTIONS request and no route can be found, we should turn this
+                // into a HTTP 204 with no content body.
+                // This allows the user to not have to specify an OPTIONS route for everything.
+                //
+                // TODO: Is there anyway we can make this smarter? Only modify status codes for
+                // requests where an actual route exist?
+                if has_allow_origin(&response) && request.method() == Method::Options &&
+                    request.route().is_none()
+                {
+                    response.set_status(Status::NoContent);
+                    let _ = response.take_body();
+                }
+            }
+        };
+
+
+    }
 }
 
 /// A CORS [Responder](https://rocket.rs/guide/responses/#responder)
@@ -753,7 +788,7 @@ pub fn respond<'a, 'r: 'a, R: response::Responder<'r>>(
 fn build_cors_response(
     options: &Cors,
     request: &Request,
-    mut response: &mut rocket::Response,
+    response: &mut rocket::Response,
 ) -> Result<(), Error> {
     // Existing CORS response?
     if has_allow_origin(response) {
@@ -781,7 +816,7 @@ fn build_cors_response(
         _ => actual_request(options, origin),
     }?;
 
-    cors_response.merge(&mut response);
+    cors_response.merge(response);
     Ok(())
 }
 

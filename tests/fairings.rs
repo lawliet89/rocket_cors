@@ -64,7 +64,7 @@ fn smoke_test() {
         .header(request_headers);
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 
     // "Actual" request
     let origin_header = Header::from(
@@ -74,7 +74,7 @@ fn smoke_test() {
     let req = client.get("/").header(origin_header).header(authorization);
 
     let mut response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
@@ -101,7 +101,7 @@ fn cors_options_check() {
         .header(request_headers);
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn cors_get_check() {
 
     let mut response = req.dispatch();
     println!("{:?}", response);
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 }
@@ -130,7 +130,7 @@ fn cors_get_no_origin() {
     let req = client.get("/").header(authorization);
 
     let mut response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 }
@@ -175,7 +175,7 @@ fn cors_options_missing_origin() {
     );
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 }
 
 #[test]
