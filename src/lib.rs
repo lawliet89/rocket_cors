@@ -124,6 +124,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::{Outcome, State};
+use rocket::fairing;
 use rocket::http::{Method, Status};
 use rocket::request::{Request, FromRequest};
 use rocket::response;
@@ -425,6 +426,28 @@ impl Cors {
         }
 
         Ok(())
+    }
+}
+
+impl fairing::Fairing for Cors {
+    fn info(&self) -> fairing::Info {
+        fairing::Info {
+            name: "CORS",
+            kind: fairing::Kind::Attach | fairing::Kind::Response,
+        }
+    }
+
+    fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
+        match self.validate() {
+            Ok(()) => Ok(rocket),
+            Err(e) => {
+                error_!("Error attaching CORS fairing: {}", e);
+                Err(rocket)
+            }
+        }
+    }
+
+    fn on_response(&self, request: &Request, response: &mut rocket::Response) {
     }
 }
 
