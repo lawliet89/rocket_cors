@@ -9,7 +9,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::local::Client;
-use rocket::http::{Header, Status};
+use rocket::http::Header;
 use rocket_cors::headers::*;
 
 #[get("/request_headers")]
