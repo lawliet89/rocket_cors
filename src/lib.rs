@@ -205,7 +205,6 @@ impl error::Error for Error {
             Error::MissingCorsInRocketState => {
                 "A CORS Request Guard was used, but no CORS Options was available in Rocket's state"
             }
-
         }
     }
 
@@ -229,7 +228,7 @@ impl fmt::Display for Error {
 
 impl<'r> response::Responder<'r> for Error {
     fn respond_to(self, _: &Request) -> Result<response::Response<'r>, Status> {
-        error_!("CORS Error: {:?}", self);
+        error_!("CORS Error: {}", self);
         Err(self.status())
     }
 }
@@ -378,6 +377,13 @@ pub struct Cors {
     /// Defaults to `false`.
     // #[serde(default)]
     pub send_wildcard: bool,
+    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
+    /// be mounted by the fairing. Specify the base the route so that it doesn't clash with any
+    /// of your existing routes.
+    ///
+    /// Defaults to "/cors"
+    // #[serde(default = "Cors::default_fairing_route_base")]
+    pub fairing_route_base: String,
 }
 
 impl Default for Cors {
@@ -390,6 +396,7 @@ impl Default for Cors {
             expose_headers: Default::default(),
             max_age: Default::default(),
             send_wildcard: Default::default(),
+            fairing_route_base: Self::default_fairing_route_base(),
         }
     }
 }
@@ -406,6 +413,10 @@ impl Cors {
             Method::Delete,
         ].into_iter()
             .collect()
+    }
+
+    fn default_fairing_route_base() -> String {
+        "/cors".to_string()
     }
 
     /// Build a CORS `Guard` to an incoming request.
@@ -428,19 +439,32 @@ impl Cors {
 
         Ok(())
     }
+
+    /// Create a new `Route` for Fairing handling
+    fn fairing_route(&self) -> rocket::Route {
+        rocket::Route::new(Method::Get, "/<status>", fairing_error_route)
+    }
+
+    /// Modifies a `Request` to route to Fairing error handler
+    fn route_to_fairing_error_handler(&self, status: u16, request: &mut Request) {
+        request.set_method(Method::Get);
+        request.set_uri(format!("{}/{}", self.fairing_route_base, status));
+    }
 }
 
 impl fairing::Fairing for Cors {
     fn info(&self) -> fairing::Info {
         fairing::Info {
             name: "CORS",
-            kind: fairing::Kind::Attach | fairing::Kind::Response,
+            kind: fairing::Kind::Attach | fairing::Kind::Request | fairing::Kind::Response,
         }
     }
 
     fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
         match self.validate() {
-            Ok(()) => Ok(rocket),
+            Ok(()) => {
+                Ok(rocket.mount(&self.fairing_route_base, vec![self.fairing_route()]))
+            }
             Err(e) => {
                 error_!("Error attaching CORS fairing: {}", e);
                 Err(rocket)
@@ -448,23 +472,26 @@ impl fairing::Fairing for Cors {
         }
     }
 
-    fn on_response(&self, request: &Request, response: &mut rocket::Response) {
-        use rocket::response::Responder;
-
+    fn on_request(&self, request: &mut Request, _: &rocket::Data) {
         // Build and merge CORS response
         match build_cors_response(self, request) {
             Err(err) => {
-                // CORS error -- overwrite the original response
-                let error_response = match err.respond_to(request) {
-                    Err(err) => {
-                        unreachable!(
-                            "Should not happen! The Error responder does not Err: {:?}",
-                            err
-                        )
-                    }
-                    Ok(error_response) => error_response,
-                };
-                response.merge(error_response)
+                error_!("CORS Error: {}", err);
+                let status = err.status();
+                self.route_to_fairing_error_handler(status.code, request);
+            }
+            Ok(cors_response) => {
+                // TODO: How to pass response downstream?
+                let _ = cors_response;
+            }
+        };
+    }
+
+    fn on_response(&self, request: &Request, response: &mut rocket::Response) {
+        // Build and merge CORS response
+        match build_cors_response(self, request) {
+            Err(_) => {
+                // We have dealt with this already
             }
             Ok(cors_response) => {
                 cors_response.merge(response);
@@ -475,9 +502,7 @@ impl fairing::Fairing for Cors {
                 //
                 // TODO: Is there anyway we can make this smarter? Only modify status codes for
                 // requests where an actual route exist?
-                if has_allow_origin(&response) && request.method() == Method::Options &&
-                    request.route().is_none()
-                {
+                if request.method() == Method::Options && request.route().is_none() {
                     response.set_status(Status::NoContent);
                     let _ = response.take_body();
                 }
@@ -486,6 +511,16 @@ impl fairing::Fairing for Cors {
 
 
     }
+}
+
+/// Route for Fairing error handling
+fn fairing_error_route<'r>(request: &'r Request, _: rocket::Data) -> rocket::handler::Outcome<'r> {
+    let status = request.get_param::<u16>(0).unwrap_or_else(|e| {
+        error_!("Fairing Error Handling Route error: {:?}", e);
+        500
+    });
+    let status = Status::from_code(status).unwrap_or_else(|| Status::InternalServerError);
+    Outcome::Failure(status)
 }
 
 /// A CORS Response which provides the following CORS headers:
@@ -680,7 +715,10 @@ pub struct Guard<'r> {
 
 impl<'r> Guard<'r> {
     fn new(response: Response) -> Self {
-        Self { response, marker: PhantomData }
+        Self {
+            response,
+            marker: PhantomData,
+        }
     }
 
     /// Consumes the Guard and return  a `Responder` that wraps a
@@ -759,7 +797,7 @@ impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R
     }
 }
 
-/// Build a CORS response and merge with an existing `rocket::Response` for the request
+/// Validates a request for CORS and returns a CORS Response
 fn build_cors_response(options: &Cors, request: &Request) -> Result<Response, Error> {
     // Existing CORS response?
     // if has_allow_origin(response) {
@@ -866,11 +904,6 @@ fn request_headers(request: &Request) -> Result<Option<AccessControlRequestHeade
         Outcome::Success(geaders) => Ok(Some(geaders)),
         Outcome::Failure((_, err)) => Err(err),
     }
-}
-
-/// Checks if an existing Response already has the header `Access-Control-Allow-Origin`
-fn has_allow_origin<'r>(response: &response::Response<'r>) -> bool {
-    response.headers().get("Access-Control-Allow-Origin").next() != None
 }
 
 /// Construct a preflight response based on the options. Will return an `Err`
