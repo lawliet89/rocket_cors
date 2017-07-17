@@ -29,7 +29,7 @@ fn make_cors_options() -> Cors {
 
     Cors {
         allowed_origins: allowed_origins,
-        allowed_methods: [Method::Get].iter().cloned().collect(),
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllOrSome::Some(
             ["Authorization"]
                 .into_iter()
@@ -42,9 +42,9 @@ fn make_cors_options() -> Cors {
 }
 
 fn rocket() -> rocket::Rocket {
-    rocket::ignite().mount("/", routes![cors, panicking_route]).attach(
-        make_cors_options(),
-    )
+    rocket::ignite()
+        .mount("/", routes![cors, panicking_route])
+        .attach(make_cors_options())
 }
 
 #[test]

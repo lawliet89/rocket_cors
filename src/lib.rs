@@ -97,15 +97,20 @@
 extern crate log;
 #[macro_use]
 extern crate rocket;
-// extern crate serde;
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate unicase;
+extern crate unicase_serde;
 extern crate url;
 extern crate url_serde;
 
 #[cfg(test)]
 extern crate hyper;
+#[cfg(test)]
+extern crate serde_test;
+#[cfg(test)]
+extern crate serde_json;
 
 #[cfg(test)]
 #[macro_use]
@@ -124,10 +129,11 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::{Outcome, State};
+use rocket::http::{self, Status};
 use rocket::fairing;
-use rocket::http::{Method, Status};
 use rocket::request::{Request, FromRequest};
 use rocket::response;
+use serde::{Serialize, Deserialize};
 
 use headers::{HeaderFieldName, HeaderFieldNamesSet, Origin, AccessControlRequestHeaders,
               AccessControlRequestMethod};
@@ -287,6 +293,78 @@ impl AllOrSome<HashSet<Url>> {
     }
 }
 
+/// A wrapper type around `rocket::http::Method` to support serialization and deserialization
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Method(http::Method);
+
+impl FromStr for Method {
+    type Err = rocket::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let method = http::Method::from_str(s)?;
+        Ok(Method(method))
+    }
+}
+
+impl Deref for Method {
+    type Target = http::Method;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<http::Method> for Method {
+    fn from(method: http::Method) -> Self {
+        Method(method)
+    }
+}
+
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl Serialize for Method {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Method {
+    fn deserialize<D>(deserializer: D) -> Result<Method, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, Visitor};
+
+        struct MethodVisitor;
+        impl<'de> Visitor<'de> for MethodVisitor {
+            type Value = Method;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing a HTTP Verb")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match Self::Value::from_str(s) {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(de::Error::custom(format!("{:?}", e))),
+                }
+            }
+        }
+
+        deserializer.deserialize_string(MethodVisitor)
+    }
+}
+
 /// Response generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
 ///
 /// This struct can be as Fairing or in an ad-hoc manner to generate CORS response.
@@ -296,7 +374,7 @@ impl AllOrSome<HashSet<Url>> {
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
-#[derive(Clone, Debug)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
@@ -314,7 +392,7 @@ pub struct Cors {
     /// Defaults to `All`.
     ///
     /// ```
-    // #[serde(default)]
+    #[serde(default)]
     pub allowed_origins: AllOrSome<HashSet<Url>>,
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
@@ -323,7 +401,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
-    // #[serde(default = "Cors::default_allowed_methods")]
+    #[serde(default = "Cors::default_allowed_methods")]
     pub allowed_methods: HashSet<Method>,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
@@ -335,7 +413,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
-    // #[serde(default)]
+    #[serde(default)]
     pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
@@ -346,7 +424,7 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    // #[serde(default)]
+    #[serde(default)]
     pub allow_credentials: bool,
     /// The list of headers which are safe to expose to the API of a CORS API specification.
     /// This corresponds to the `Access-Control-Expose-Headers` responde header.
@@ -355,13 +433,13 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// This defaults to an empty set.
-    // #[serde(default)]
+    #[serde(default)]
     pub expose_headers: HashSet<String>,
     /// The maximum time for which this CORS request maybe cached. This value is set as the
     /// `Access-Control-Max-Age` header.
     ///
     /// This defaults to `None` (unset).
-    // #[serde(default)]
+    #[serde(default)]
     pub max_age: Option<usize>,
     /// If true, and the `allowed_origins` parameter is `All`, a wildcard
     /// `Access-Control-Allow-Origin` response header is sent, rather than the request’s
@@ -375,14 +453,14 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    // #[serde(default)]
+    #[serde(default)]
     pub send_wildcard: bool,
     /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
     /// be mounted by the fairing. Specify the base the route so that it doesn't clash with any
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
-    // #[serde(default = "Cors::default_fairing_route_base")]
+    #[serde(default = "Cors::default_fairing_route_base")]
     pub fairing_route_base: String,
 }
 
@@ -403,6 +481,8 @@ impl Default for Cors {
 
 impl Cors {
     fn default_allowed_methods() -> HashSet<Method> {
+        use rocket::http::Method;
+
         vec![
             Method::Get,
             Method::Head,
@@ -412,6 +492,7 @@ impl Cors {
             Method::Patch,
             Method::Delete,
         ].into_iter()
+            .map(From::from)
             .collect()
     }
 
@@ -442,12 +523,12 @@ impl Cors {
 
     /// Create a new `Route` for Fairing handling
     fn fairing_route(&self) -> rocket::Route {
-        rocket::Route::new(Method::Get, "/<status>", fairing_error_route)
+        rocket::Route::new(http::Method::Get, "/<status>", fairing_error_route)
     }
 
     /// Modifies a `Request` to route to Fairing error handler
     fn route_to_fairing_error_handler(&self, status: u16, request: &mut Request) {
-        request.set_method(Method::Get);
+        request.set_method(http::Method::Get);
         request.set_uri(format!("{}/{}", self.fairing_route_base, status));
     }
 }
@@ -502,7 +583,7 @@ impl fairing::Fairing for Cors {
                 //
                 // TODO: Is there anyway we can make this smarter? Only modify status codes for
                 // requests where an actual route exist?
-                if request.method() == Method::Options && request.route().is_none() {
+                if request.method() == http::Method::Options && request.route().is_none() {
                     response.set_status(Status::NoContent);
                     let _ = response.take_body();
                 }
@@ -817,7 +898,7 @@ fn build_cors_response(options: &Cors, request: &Request) -> Result<Response, Er
 
     // Check if the request verb is an OPTION or something else
     let cors_response = match request.method() {
-        Method::Options => {
+        http::Method::Options => {
             let method = request_method(request)?;
             let headers = request_headers(request)?;
             preflight(options, origin, method, headers)
@@ -1074,7 +1155,8 @@ fn actual_request(options: &Cors, origin: Origin) -> Result<Response, Error> {
 #[allow(unmounted_route)]
 mod tests {
     use std::str::FromStr;
-    use rocket::http::Method;
+    use serde_json;
+    use http::Method;
     use super::*;
 
     fn make_cors_options() -> Cors {
@@ -1084,7 +1166,10 @@ mod tests {
 
         Cors {
             allowed_origins: allowed_origins,
-            allowed_methods: [Method::Get].iter().cloned().collect(),
+            allowed_methods: vec![http::Method::Get]
+                .into_iter()
+                .map(From::from)
+                .collect(),
             allowed_headers: AllOrSome::Some(
                 ["Authorization"]
                     .into_iter()
@@ -1095,6 +1180,8 @@ mod tests {
             ..Default::default()
         }
     }
+
+    // CORS options test
 
     #[test]
     fn cors_is_validated() {
@@ -1110,6 +1197,13 @@ mod tests {
         cors.send_wildcard = true;
 
         cors.validate().unwrap();
+    }
+
+    /// Check that the the default deserialization matches the one returned by `Default::default`
+    #[test]
+    fn cors_default_deserialization_is_correct() {
+        let deserialized: Cors = serde_json::from_str("{}").expect("To not fail");
+        assert_eq!(deserialized, Cors::default());
     }
 
     // The following tests check validation
@@ -1205,6 +1299,7 @@ mod tests {
     fn allowed_methods_validated_correctly() {
         let allowed_methods = vec![Method::Get, Method::Head, Method::Post]
             .into_iter()
+            .map(From::from)
             .collect();
 
         let method = "GET";
@@ -1220,6 +1315,7 @@ mod tests {
     fn allowed_methods_errors_on_disallowed_method() {
         let allowed_methods = vec![Method::Get, Method::Head, Method::Post]
             .into_iter()
+            .map(From::from)
             .collect();
 
         let method = "DELETE";
@@ -1323,6 +1419,31 @@ mod tests {
         );
 
 
+    }
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct MethodTest {
+        method: ::Method,
+    }
+
+    #[test]
+    fn method_serde_roundtrip() {
+        use serde_test::{Token, assert_tokens};
+
+        let test = MethodTest { method: From::from(http::Method::Get) };
+
+        assert_tokens(
+            &test,
+            &[
+                Token::Struct {
+                    name: "MethodTest",
+                    len: 1,
+                },
+                Token::Str("method"),
+                Token::Str("GET"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     // TODO: Preflight tests
