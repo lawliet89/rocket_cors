@@ -101,6 +101,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate unicase;
+extern crate unicase_serde;
 extern crate url;
 extern crate url_serde;
 
