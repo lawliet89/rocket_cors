@@ -18,6 +18,11 @@ fn cors<'a>() -> &'a str {
     "Hello CORS"
 }
 
+#[get("/panic")]
+fn panicking_route() {
+    panic!("This route will panic");
+}
+
 fn make_cors_options() -> Cors {
     let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
@@ -37,7 +42,7 @@ fn make_cors_options() -> Cors {
 }
 
 fn rocket() -> rocket::Rocket {
-    rocket::ignite().mount("/", routes![cors]).attach(
+    rocket::ignite().mount("/", routes![cors, panicking_route]).attach(
         make_cors_options(),
     )
 }
@@ -234,6 +239,33 @@ fn cors_get_bad_origin() {
     );
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
+
+    let response = req.dispatch();
+    assert_eq!(response.status(), Status::Forbidden);
+}
+
+/// This test ensures that on a failing CORS request, the route (along with its side effects)
+/// should never be executed.
+/// The route used will panic if executed
+#[test]
+fn routes_failing_checks_are_not_executed() {
+    let client = Client::new(rocket()).unwrap();
+
+    let origin_header = Header::from(
+        hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap(),
+    );
+    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+        hyper::method::Method::Get,
+    ));
+    let request_headers = hyper::header::AccessControlRequestHeaders(
+        vec![FromStr::from_str("Authorization").unwrap()],
+    );
+    let request_headers = Header::from(request_headers);
+    let req = client
+        .options("/panic")
+        .header(origin_header)
+        .header(method_header)
+        .header(request_headers);
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
