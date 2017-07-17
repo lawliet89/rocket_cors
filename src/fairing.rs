@@ -1,16 +1,8 @@
 //! Fairing implementation
-use base64;
 use rocket::{self, Request, Outcome};
-use rocket::http::{self, Status, Header};
-use rmps;
+use rocket::http::{self, Status};
 
-use {Cors, Response, Error, build_cors_response};
-
-static HEADER_NAME: &'static str = "ROCKET-CORS";
-
-/// Type of the Request header the `on_request` fairing handler will inject into requests
-/// for `on_response` to deal with
-pub(crate) type CorsInjectedHeader = Result<Response, String>;
+use {Cors, build_cors_response};
 
 /// Route for Fairing error handling
 pub(crate) fn fairing_error_route<'r>(
@@ -34,33 +26,6 @@ fn fairing_route() -> rocket::Route {
 fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Request) {
     request.set_method(http::Method::Get);
     request.set_uri(format!("{}/{}", options.fairing_route_base, status));
-}
-
-/// Inject `CorsInjectedHeader` into the request header
-fn inject_request_header(
-    response: &CorsInjectedHeader,
-    request: &mut Request,
-) -> Result<(), Error> {
-    let serialized = rmps::to_vec(response).map_err(Error::RmpSerializationError)?;
-    let base64 = base64::encode_config(&serialized, base64::URL_SAFE);
-    request.replace_header(Header::new(HEADER_NAME, base64));
-    Ok(())
-}
-
-/// Extract the injected `CorsInjectedHeader`
-fn extract_request_header(request: &Request) -> Result<Option<CorsInjectedHeader>, Error> {
-    let header = match request.headers().get_one(HEADER_NAME) {
-        Some(header) => header,
-        None => return Ok(None),
-    };
-
-    let bytes = base64::decode_config(header, base64::URL_SAFE).map_err(
-        Error::Base64DecodeError,
-    )?;
-    let deserialized: CorsInjectedHeader = rmps::from_slice(&bytes).map_err(
-        Error::RmpDeserializationError,
-    )?;
-    Ok(Some(deserialized))
 }
 
 impl rocket::fairing::Fairing for Cors {
@@ -93,47 +58,11 @@ impl rocket::fairing::Fairing for Cors {
             let status = err.status();
             route_to_fairing_error_handler(self, status.code, request);
         }
-
-        let cors_response = cors_response.map_err(|e| e.to_string());
-
-        if let Err(err) = inject_request_header(&cors_response, request) {
-            // Internal server error -- probably a bug
-            error_!(
-                "Fairing had an error injecting headers: {}\nThis might be a bug. Please report.",
-                err
-            );
-            let status = err.status();
-            route_to_fairing_error_handler(self, status.code, request);
-        }
     }
 
     fn on_response(&self, request: &Request, response: &mut rocket::Response) {
-        let header = match extract_request_header(request) {
-            Err(err) => {
-                // We have a bug
-                error_!(
-                    "Fairing had an error extracting headers: {}\nThis might be a bug. \
-                    Please report.",
-                    err
-                );
-
-                // Let's respond with an internal server error
-                response.set_status(Status::InternalServerError);
-                let _ = response.take_body();
-                return;
-            }
-            Ok(header) => header,
-        };
-
-        let header = match header {
-            None => {
-                // This is not a CORS request
-                return;
-            }
-            Some(header) => header,
-        };
-
-        match header {
+        // Rebuild the response
+        match build_cors_response(self, request) {
             Err(_) => {
                 // We have dealt with this already
             }

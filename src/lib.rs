@@ -93,10 +93,8 @@
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-extern crate base64;
 #[macro_use]
 extern crate log;
-extern crate rmp_serde as rmps;
 #[macro_use]
 extern crate rocket;
 extern crate serde;
@@ -173,12 +171,6 @@ pub enum Error {
     ///
     /// This is a misconfiguration. Use `Rocket::manage` to add a CORS options to managed state.
     MissingCorsInRocketState,
-    /// An internal Base64 Decoding Error. This is likely a bug.
-    Base64DecodeError(base64::DecodeError),
-    /// An internal error serializing Rust MessagePack. This is likely a bug.
-    RmpSerializationError(rmps::encode::Error),
-    /// An internal error deserializing Rust MessagePack. This is likely a bug.
-    RmpDeserializationError(rmps::decode::Error),
 }
 
 impl Error {
@@ -187,8 +179,7 @@ impl Error {
             Error::MissingOrigin | Error::OriginNotAllowed | Error::MethodNotAllowed |
             Error::HeadersNotAllowed => Status::Forbidden,
             Error::CredentialsWithWildcardOrigin |
-            Error::MissingCorsInRocketState |
-            Error::Base64DecodeError(_) => Status::InternalServerError,
+            Error::MissingCorsInRocketState => Status::InternalServerError,
             _ => Status::BadRequest,
         }
     }
@@ -220,24 +211,12 @@ impl error::Error for Error {
             Error::MissingCorsInRocketState => {
                 "A CORS Request Guard was used, but no CORS Options was available in Rocket's state"
             }
-            Error::Base64DecodeError(_) => {
-                "An internal Base64 Decoding Error. This is likely a bug."
-            }
-            Error::RmpSerializationError(_) => {
-                "An internal error serializing Rust MessagePack. This is likely a bug."
-            }
-            Error::RmpDeserializationError(_) => {
-                "An internal error deserializing Rust MessagePack. This is likely a bug."
-            }
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             Error::BadOrigin(ref e) => Some(e),
-            Error::Base64DecodeError(ref e) => Some(e),
-            Error::RmpSerializationError(ref e) => Some(e),
-            Error::RmpDeserializationError(ref e) => Some(e),
             _ => Some(self),
         }
     }
@@ -248,9 +227,6 @@ impl fmt::Display for Error {
         match *self {
             Error::BadOrigin(ref e) => fmt::Display::fmt(e, f),
             Error::BadRequestMethod(ref e) => fmt::Debug::fmt(e, f),
-            Error::Base64DecodeError(ref e) => fmt::Display::fmt(e, f),
-            Error::RmpSerializationError(ref e) => fmt::Display::fmt(e, f),
-            Error::RmpDeserializationError(ref e) => fmt::Display::fmt(e, f),
             _ => write!(f, "{}", error::Error::description(self)),
         }
     }
@@ -398,7 +374,7 @@ impl<'de> Deserialize<'de> for Method {
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
-#[derive(Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
@@ -555,7 +531,7 @@ impl Cors {
 /// - `Access-Control-Allow-Methods`
 /// - `Access-Control-Allow-Headers`
 /// - `Vary`
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct Response {
     allow_origin: Option<AllOrSome<String>>,
     allow_methods: HashSet<Method>,

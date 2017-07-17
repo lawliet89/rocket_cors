@@ -15,10 +15,8 @@ categories = ["web-programming"]
 travis-ci = { repository = "lawliet89/rocket_cors" }
 
 [dependencies]
-base64 = "0.6.0"
 log = "0.3"
 rocket = "0.3"
-rmp-serde = "0.13.4"
 serde = "1.0"
 serde_derive = "1.0"
 unicase = "2.0"
