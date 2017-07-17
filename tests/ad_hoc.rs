@@ -4,34 +4,33 @@
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;
-extern crate rocket_cors;
+extern crate rocket_cors as cors;
 
 use std::str::FromStr;
 
-use rocket::State;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
-use rocket_cors::*;
 
 #[options("/")]
-fn cors_options(options: State<rocket_cors::Cors>) -> Responder<&str> {
-    rocket_cors::respond(options, "")
+fn cors_options<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
+    cors.responder("")
 }
 
 #[get("/")]
-fn cors(options: State<rocket_cors::Cors>) -> Responder<&str> {
-    rocket_cors::respond(options, "Hello CORS")
+fn cors<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
+    cors.responder("Hello CORS")
 }
 
-fn make_cors_options() -> Cors {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+fn make_cors_options() -> cors::Cors {
+    let (allowed_origins, failed_origins) =
+        cors::AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    Cors {
+    cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: [Method::Get].iter().cloned().collect(),
-        allowed_headers: AllOrSome::Some(
+        allowed_headers: cors::AllOrSome::Some(
             ["Authorization"]
                 .into_iter()
                 .map(|s| s.to_string().into())
@@ -44,12 +43,13 @@ fn make_cors_options() -> Cors {
 
 #[test]
 fn smoke_test() {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    let (allowed_origins, failed_origins) =
+        cors::AllOrSome::new_from_str_list(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
-    let cors_options = rocket_cors::Cors {
+    let cors_options = cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: [Method::Get].iter().cloned().collect(),
-        allowed_headers: AllOrSome::Some(
+        allowed_headers: cors::AllOrSome::Some(
             ["Authorization"]
                 .iter()
                 .map(|s| s.to_string().into())
