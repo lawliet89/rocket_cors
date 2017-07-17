@@ -291,7 +291,7 @@ impl AllOrSome<HashSet<Url>> {
     }
 }
 
-/// Response generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
+/// A wrapper type around `rocket::http::Method` to support serialization and deserialization
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Method(http::Method);
 
@@ -363,6 +363,7 @@ impl<'de> Deserialize<'de> for Method {
     }
 }
 
+/// Response generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
 ///
 /// This struct can be as Fairing or in an ad-hoc manner to generate CORS response.
 ///
