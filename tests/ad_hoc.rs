@@ -8,18 +8,18 @@ extern crate rocket_cors as cors;
 
 use std::str::FromStr;
 
-use rocket::Response;
+use rocket::{Response, State};
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
 
 #[options("/")]
-fn cors_options<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
+fn cors_options(cors: cors::Guard) -> cors::Responder<&str> {
     cors.responder("")
 }
 
 #[get("/")]
-fn cors<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
+fn cors(cors: cors::Guard) -> cors::Responder<&str> {
     cors.responder("Hello CORS")
 }
 
@@ -28,22 +28,30 @@ fn cors<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
 /// Using a `Response` instead of a `Responder`
 #[allow(unmounted_route)]
 #[get("/")]
-fn response<'a>(cors: cors::Response) -> Response<'a> {
+fn response(cors: cors::Guard) -> Response {
     cors.response(Response::new())
 }
 
 /// `Responder` with String
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_string<'a>(cors: cors::Response) -> cors::Responder<'a, String> {
+fn responder_string(cors: cors::Guard) -> cors::Responder<String> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_unit(cors: cors::Response) -> cors::Responder<'static, ()> {
+fn responder_unit(cors: cors::Guard) -> cors::Responder<()> {
     cors.responder(())
+}
+
+struct SomeState;
+/// Borrow `SomeState` from Rocket
+#[allow(unmounted_route)]
+#[get("/")]
+fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Responder<'r, &'r str> {
+    cors.responder("hmm")
 }
 
 fn make_cors_options() -> cors::Cors {

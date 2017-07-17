@@ -408,16 +408,15 @@ impl Cors {
             .collect()
     }
 
-    /// Build a CORS `Response` to an incoming request.
+    /// Build a CORS `Guard` to an incoming request.
     ///
-    /// The `Response` should be merged with an
-    /// existing `Rocket::Response` or `rocket::response::Responder`.
-    ///
-    /// This is only used for ad-hoc route CORS response
-    pub fn build<'a, 'r>(&'a self, request: &'a Request<'r>) -> Result<Response, Error> {
-        build_cors_response(self, request)
+    /// You will usually not have to use this function but simply place a route argument for the
+    /// `Guard` type. This is useful if you want an even more ad-hoc based approach to respond to
+    /// CORS by using a `Cors` that is not in Rocket's managed state.
+    pub fn guard<'a, 'r>(&'a self, request: &'a Request<'r>) -> Result<Guard<'r>, Error> {
+        let response = build_cors_response(self, request)?;
+        Ok(Guard::new(response))
     }
-
 
     /// Validates if any of the settings are disallowed or incorrect
     ///
@@ -499,7 +498,7 @@ impl fairing::Fairing for Cors {
 /// - `Access-Control-Allow-Headers`
 /// - `Vary`
 #[derive(Eq, PartialEq, Debug)]
-pub struct Response {
+struct Response {
     allow_origin: Option<AllOrSome<String>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
@@ -668,7 +667,38 @@ impl Response {
     }
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for Response {
+
+/// A [request guard](https://rocket.rs/guide/requests/#request-guards) to check CORS headers
+/// before a route is run. Will not execute the route if checks fail
+///
+// In essence, this is just a wrapper around `Response` with a `'r` borrowed lifetime so users
+// don't have to keep specifying the lifetimes in their routes
+pub struct Guard<'r> {
+    response: Response,
+    marker: PhantomData<&'r Response>,
+}
+
+impl<'r> Guard<'r> {
+    fn new(response: Response) -> Self {
+        Self { response, marker: PhantomData }
+    }
+
+    /// Consumes the Guard and return  a `Responder` that wraps a
+    /// provided `rocket:response::Responder` with CORS headers
+    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> Responder<'r, R> {
+        self.response.responder(responder)
+    }
+
+    /// Merge a `rocket::Response` with this CORS Guard. This is usually used in the final step
+    /// of a route to return a value for the route.
+    ///
+    /// This will overwrite any existing CORS headers
+    pub fn response(&self, base: response::Response<'r>) -> response::Response<'r> {
+        self.response.response(base)
+    }
+}
+
+impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
     type Error = Error;
 
     fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
@@ -680,8 +710,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for Response {
             }
         };
 
-        match Self::build_cors_response(&options, request) {
-            Ok(response) => Outcome::Success(response),
+        match Response::build_cors_response(&options, request) {
+            Ok(response) => Outcome::Success(Self::new(response)),
             Err(error) => Outcome::Failure((error.status(), error)),
         }
     }
@@ -1091,7 +1121,7 @@ mod tests {
         let response = response.exposed_headers(&headers);
 
         // Build response and check built response header
-        let response = response.respond(response::Response::new());
+        let response = response.response(response::Response::new());
         let actual_header: Vec<_> = response
             .headers()
             .get("Access-Control-Expose-Headers")
@@ -1115,7 +1145,7 @@ mod tests {
 
         // Build response and check built response header
         let expected_header = vec!["42"];
-        let response = response.respond(response::Response::new());
+        let response = response.response(response::Response::new());
         let actual_header: Vec<_> = response.headers().get("Access-Control-Max-Age").collect();
         assert_eq!(expected_header, actual_header);
     }
@@ -1128,7 +1158,7 @@ mod tests {
         let response = response.max_age(None);
 
         // Build response and check built response header
-        let response = response.respond(response::Response::new());
+        let response = response.response(response::Response::new());
         assert!(
             response
                 .headers()
@@ -1217,7 +1247,7 @@ mod tests {
     #[test]
     fn response_does_not_build_if_origin_is_not_set() {
         let response = Response::new();
-        let response = response.respond(response::Response::new());
+        let response = response.response(response::Response::new());
 
         let headers: Vec<_> = response.headers().iter().collect();
         assert_eq!(headers.len(), 0);
@@ -1236,7 +1266,7 @@ mod tests {
 
         let response = Response::new();
         let response = response.origin("https://www.example.com", false);
-        let response = response.respond(original);
+        let response = response.response(original);
         // Check CORS header
         let expected_header = vec!["https://www.example.com"];
         let actual_header: Vec<_> = response
