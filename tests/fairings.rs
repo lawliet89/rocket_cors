@@ -1,4 +1,4 @@
-//! This crate tests using rocket_cors using the "classic" per-route handling
+//! This crate tests using rocket_cors using Fairings
 
 #![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
@@ -8,20 +8,14 @@ extern crate rocket_cors;
 
 use std::str::FromStr;
 
-use rocket::State;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
 use rocket_cors::*;
 
-#[options("/")]
-fn cors_options(options: State<rocket_cors::Cors>) -> Responder<&str> {
-    rocket_cors::respond(options, "")
-}
-
 #[get("/")]
-fn cors(options: State<rocket_cors::Cors>) -> Responder<&str> {
-    rocket_cors::respond(options, "Hello CORS")
+fn cors<'a>() -> &'a str {
+    "Hello CORS"
 }
 
 fn make_cors_options() -> Cors {
@@ -42,26 +36,15 @@ fn make_cors_options() -> Cors {
     }
 }
 
+fn rocket() -> rocket::Rocket {
+    rocket::ignite().mount("/", routes![cors]).attach(
+        make_cors_options(),
+    )
+}
+
 #[test]
 fn smoke_test() {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
-    assert!(failed_origins.is_empty());
-    let cors_options = rocket_cors::Cors {
-        allowed_origins: allowed_origins,
-        allowed_methods: [Method::Get].iter().cloned().collect(),
-        allowed_headers: AllOrSome::Some(
-            ["Authorization"]
-                .iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-        ),
-        allow_credentials: true,
-        ..Default::default()
-    };
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(cors_options);
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     // `Options` pre-flight checks
     let origin_header = Header::from(
@@ -81,7 +64,7 @@ fn smoke_test() {
         .header(request_headers);
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 
     // "Actual" request
     let origin_header = Header::from(
@@ -91,7 +74,7 @@ fn smoke_test() {
     let req = client.get("/").header(origin_header).header(authorization);
 
     let mut response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
@@ -99,10 +82,7 @@ fn smoke_test() {
 
 #[test]
 fn cors_options_check() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
@@ -121,15 +101,12 @@ fn cors_options_check() {
         .header(request_headers);
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 }
 
 #[test]
 fn cors_get_check() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
@@ -139,7 +116,7 @@ fn cors_get_check() {
 
     let mut response = req.dispatch();
     println!("{:?}", response);
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 }
@@ -147,26 +124,20 @@ fn cors_get_check() {
 /// This test is to check that non CORS compliant requests to GET should still work. (i.e. curl)
 #[test]
 fn cors_get_no_origin() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(authorization);
 
     let mut response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 }
 
 #[test]
 fn cors_options_bad_origin() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap(),
@@ -190,10 +161,7 @@ fn cors_options_bad_origin() {
 
 #[test]
 fn cors_options_missing_origin() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
@@ -207,15 +175,12 @@ fn cors_options_missing_origin() {
     );
 
     let response = req.dispatch();
-    assert_eq!(response.status(), Status::Ok);
+    assert!(response.status().class().is_success());
 }
 
 #[test]
 fn cors_options_bad_request_method() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
@@ -239,10 +204,7 @@ fn cors_options_bad_request_method() {
 
 #[test]
 fn cors_options_bad_request_header() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
@@ -265,10 +227,7 @@ fn cors_options_bad_request_header() {
 
 #[test]
 fn cors_get_bad_origin() {
-    let rocket = rocket::ignite()
-        .mount("/", routes![cors, cors_options])
-        .manage(make_cors_options());
-    let client = Client::new(rocket).unwrap();
+    let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
         hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap(),

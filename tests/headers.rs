@@ -9,7 +9,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::local::Client;
-use rocket::http::{Header, Status};
+use rocket::http::Header;
 use rocket_cors::headers::*;
 
 #[get("/request_headers")]
@@ -52,7 +52,7 @@ fn request_headers_round_trip_smoke_test() {
         .header(request_headers);
     let mut response = req.dispatch();
 
-    assert_eq!(Status::Ok, response.status());
+    assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string()).expect(
         "Non-empty body",
     );
