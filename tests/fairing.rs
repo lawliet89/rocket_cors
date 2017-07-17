@@ -172,6 +172,7 @@ fn cors_options_bad_origin() {
     assert_eq!(response.status(), Status::Forbidden);
 }
 
+/// Unlike the "ad-hoc" mode, this should return 404 because we don't have such a route
 #[test]
 fn cors_options_missing_origin() {
     let client = Client::new(rocket()).unwrap();
@@ -188,7 +189,7 @@ fn cors_options_missing_origin() {
     );
 
     let response = req.dispatch();
-    assert!(response.status().class().is_success());
+    assert_eq!(response.status(), Status::NotFound);
 }
 
 #[test]

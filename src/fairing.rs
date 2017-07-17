@@ -2,7 +2,7 @@
 use rocket::{self, Request, Outcome};
 use rocket::http::{self, Status};
 
-use {Cors, build_cors_response};
+use {Cors, Error, validate, preflight_response, actual_request_response, origin, request_headers};
 
 /// Route for Fairing error handling
 pub(crate) fn fairing_error_route<'r>(
@@ -26,6 +26,43 @@ fn fairing_route() -> rocket::Route {
 fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Request) {
     request.set_method(http::Method::Get);
     request.set_uri(format!("{}/{}", options.fairing_route_base, status));
+}
+
+fn on_response_wrapper(
+    options: &Cors,
+    request: &Request,
+    response: &mut rocket::Response,
+) -> Result<(), Error> {
+    let origin = match origin(request)? {
+        None => {
+            // Not a CORS request
+            return Ok(());
+        }
+        Some(origin) => origin,
+    };
+
+    let cors_response = if request.method() == http::Method::Options {
+        let headers = request_headers(request)?;
+        preflight_response(options, origin, headers)
+    } else {
+        actual_request_response(options, origin)
+    };
+
+    cors_response.merge(response);
+
+    // If this was an OPTIONS request and no route can be found, we should turn this
+    // into a HTTP 204 with no content body.
+    // This allows the user to not have to specify an OPTIONS route for everything.
+    //
+    // TODO: Is there anyway we can make this smarter? Only modify status codes for
+    // requests where an actual route exist?
+    if request.method() == http::Method::Options && request.method() == http::Method::Options &&
+        request.route().is_none()
+    {
+        response.set_status(Status::NoContent);
+        let _ = response.take_body();
+    }
+    Ok(())
 }
 
 impl rocket::fairing::Fairing for Cors {
@@ -52,7 +89,7 @@ impl rocket::fairing::Fairing for Cors {
     fn on_request(&self, request: &mut Request, _: &rocket::Data) {
         // Build and merge CORS response
         // Type annotation is for sanity check
-        let cors_response = build_cors_response(self, request);
+        let cors_response = validate(self, request);
         if let Err(ref err) = cors_response {
             error_!("CORS Error: {}", err);
             let status = err.status();
@@ -61,25 +98,10 @@ impl rocket::fairing::Fairing for Cors {
     }
 
     fn on_response(&self, request: &Request, response: &mut rocket::Response) {
-        // Rebuild the response
-        match build_cors_response(self, request) {
-            Err(_) => {
-                // We have dealt with this already
-            }
-            Ok(cors_response) => {
-                cors_response.merge(response);
-
-                // If this was an OPTIONS request and no route can be found, we should turn this
-                // into a HTTP 204 with no content body.
-                // This allows the user to not have to specify an OPTIONS route for everything.
-                //
-                // TODO: Is there anyway we can make this smarter? Only modify status codes for
-                // requests where an actual route exist?
-                if request.method() == http::Method::Options && request.route().is_none() {
-                    response.set_status(Status::NoContent);
-                    let _ = response.take_body();
-                }
-            }
+        if let Err(err) = on_response_wrapper(self, request, response) {
+            error_!("Fairings on_response error: {}\nMost likely a bug", err);
+            response.set_status(Status::InternalServerError);
+            let _ = response.take_body();
         }
     }
 }
