@@ -109,6 +109,8 @@ extern crate url_serde;
 extern crate hyper;
 #[cfg(test)]
 extern crate serde_test;
+#[cfg(test)]
+extern crate serde_json;
 
 #[cfg(test)]
 #[macro_use]
@@ -372,7 +374,7 @@ impl<'de> Deserialize<'de> for Method {
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
@@ -458,7 +460,7 @@ pub struct Cors {
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
-    // #[serde(default = "Cors::default_fairing_route_base")]
+    #[serde(default = "Cors::default_fairing_route_base")]
     pub fairing_route_base: String,
 }
 
@@ -1153,6 +1155,7 @@ fn actual_request(options: &Cors, origin: Origin) -> Result<Response, Error> {
 #[allow(unmounted_route)]
 mod tests {
     use std::str::FromStr;
+    use serde_json;
     use http::Method;
     use super::*;
 
@@ -1178,6 +1181,8 @@ mod tests {
         }
     }
 
+    // CORS options test
+
     #[test]
     fn cors_is_validated() {
         assert!(make_cors_options().validate().is_ok())
@@ -1192,6 +1197,13 @@ mod tests {
         cors.send_wildcard = true;
 
         cors.validate().unwrap();
+    }
+
+    /// Check that the the default deserialization matches the one returned by `Default::default`
+    #[test]
+    fn cors_default_deserialization_is_correct() {
+        let deserialized: Cors = serde_json::from_str("{}").expect("To not fail");
+        assert_eq!(deserialized, Cors::default());
     }
 
     // The following tests check validation
