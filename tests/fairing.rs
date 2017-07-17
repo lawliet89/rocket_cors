@@ -1,10 +1,11 @@
 //! This crate tests using rocket_cors using Fairings
 
-#![feature(plugin, custom_derive)]
+#![feature(plugin, custom_derive, test)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;
 extern crate rocket_cors;
+extern crate test;
 
 use std::str::FromStr;
 
@@ -83,6 +84,13 @@ fn smoke_test() {
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
+}
+
+use test::Bencher;
+
+#[bench]
+fn bench_smoke_test(b: &mut Bencher) {
+    b.iter(|| smoke_test());
 }
 
 #[test]
