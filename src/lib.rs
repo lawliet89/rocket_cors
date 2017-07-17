@@ -580,7 +580,7 @@ impl Response {
     /// of a route to return a value for the route.
     ///
     /// This will overwrite any existing CORS headers
-    pub fn respond<'r>(&self, base: response::Response<'r>) -> response::Response<'r> {
+    pub fn response<'r>(&self, base: response::Response<'r>) -> response::Response<'r> {
         let mut response = response::Response::build_from(base).finalize();
         self.merge(&mut response);
         response

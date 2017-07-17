@@ -8,6 +8,7 @@ extern crate rocket_cors as cors;
 
 use std::str::FromStr;
 
+use rocket::Response;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
@@ -20,6 +21,29 @@ fn cors_options<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
 #[get("/")]
 fn cors<'a>(cors: cors::Response) -> cors::Responder<'a, &'a str> {
     cors.responder("Hello CORS")
+}
+
+// The following routes tests that the routes can be compiled with ad-hoc CORS Response/Responders
+
+/// Using a `Response` instead of a `Responder`
+#[allow(unmounted_route)]
+#[get("/")]
+fn response<'a>(cors: cors::Response) -> Response<'a> {
+    cors.response(Response::new())
+}
+
+/// `Responder` with String
+#[allow(unmounted_route)]
+#[get("/")]
+fn responder_string<'a>(cors: cors::Response) -> cors::Responder<'a, String> {
+    cors.responder("Hello CORS".to_string())
+}
+
+/// `Responder` with 'static ()
+#[allow(unmounted_route)]
+#[get("/")]
+fn responder_unit(cors: cors::Response) -> cors::Responder<'static, ()> {
+    cors.responder(())
 }
 
 fn make_cors_options() -> cors::Cors {
