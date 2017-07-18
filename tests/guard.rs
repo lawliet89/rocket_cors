@@ -1,4 +1,4 @@
-//! This crate tests using rocket_cors using the "classic" ad-hoc per-route handling
+//! This crate tests using rocket_cors using the per-route handling with request guard
 
 #![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
@@ -68,7 +68,7 @@ fn make_cors_options() -> cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: cors::AllOrSome::Some(
-            ["Authorization"]
+            ["Authorization", "Accept"]
                 .into_iter()
                 .map(|s| s.to_string().into())
                 .collect(),

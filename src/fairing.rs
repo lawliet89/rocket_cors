@@ -88,7 +88,6 @@ impl rocket::fairing::Fairing for Cors {
 
     fn on_request(&self, request: &mut Request, _: &rocket::Data) {
         // Build and merge CORS response
-        // Type annotation is for sanity check
         let cors_response = validate(self, request);
         if let Err(ref err) = cors_response {
             error_!("CORS Error: {}", err);
@@ -104,4 +103,79 @@ impl rocket::fairing::Fairing for Cors {
             let _ = response.take_body();
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use rocket::Rocket;
+    use rocket::http::{Method, Status};
+    use rocket::local::Client;
+
+    use {Cors, AllOrSome};
+
+    const CORS_ROOT: &'static str = "/my_cors";
+
+    fn make_cors_options() -> Cors {
+        let (allowed_origins, failed_origins) =
+            AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+        assert!(failed_origins.is_empty());
+
+        Cors {
+            allowed_origins: allowed_origins,
+            allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+            allowed_headers: AllOrSome::Some(
+                ["Authorization"]
+                    .into_iter()
+                    .map(|s| s.to_string().into())
+                    .collect(),
+            ),
+            allow_credentials: true,
+            fairing_route_base: CORS_ROOT.to_string(),
+
+            ..Default::default()
+        }
+    }
+
+    fn rocket(fairing: Cors) -> Rocket {
+        Rocket::ignite().attach(fairing)
+    }
+
+    #[test]
+    fn fairing_error_route_returns_passed_in_status() {
+        let client = Client::new(rocket(make_cors_options())).expect("to not fail");
+        let request = client.get(format!("{}/403", CORS_ROOT));
+        let response = request.dispatch();
+        assert_eq!(Status::Forbidden, response.status());
+    }
+
+    #[test]
+    fn fairing_error_route_returns_500_for_unknown_status() {
+        let client = Client::new(rocket(make_cors_options())).expect("to not fail");
+        let request = client.get(format!("{}/999", CORS_ROOT));
+        let response = request.dispatch();
+        assert_eq!(Status::InternalServerError, response.status());
+    }
+
+    #[test]
+    fn error_route_is_mounted_on_attach() {
+        let rocket = rocket(make_cors_options());
+
+        let expected_uri = format!("{}/<status>", CORS_ROOT);
+        let error_route = rocket.routes().find(|r| {
+            r.method == Method::Get && r.uri.as_str() == expected_uri
+        });
+        assert!(error_route.is_some());
+    }
+
+    #[test]
+    #[should_panic(expected = "launch fairing failure")]
+    fn options_are_validated_on_attach() {
+        let mut options = make_cors_options();
+        options.allowed_origins = AllOrSome::All;
+        options.send_wildcard = true;
+
+        let _ = rocket(options).launch();
+    }
+
+    // Rest of the things can only be tested in integration tests
 }
