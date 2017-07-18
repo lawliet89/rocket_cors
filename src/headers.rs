@@ -144,7 +144,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that the header is passed in correctly.
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct AccessControlRequestHeaders(pub HeaderFieldNamesSet);
 
 /// Will never fail
@@ -184,7 +184,6 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
 }
 
 #[cfg(test)]
-#[allow(unmounted_route)]
 mod tests {
     use std::str::FromStr;
 

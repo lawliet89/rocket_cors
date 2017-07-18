@@ -1,4 +1,4 @@
-//! This crate tests using rocket_cors using the "classic" ad-hoc per-route handling
+//! This crate tests using rocket_cors using the per-route handling with request guard
 
 #![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
