@@ -29,7 +29,7 @@ might work, but it's not guaranteed.
 Add the following to Cargo.toml:
 
 ```toml
-rocket_cors = "0.1.0"
+rocket_cors = "0.1.1"
 ```
 
 To use the latest `master` branch, for example:
