@@ -1151,12 +1151,16 @@ mod tests {
                 .map(From::from)
                 .collect(),
             allowed_headers: AllOrSome::Some(
-                ["Authorization"]
+                ["Authorization", "Accept"]
                     .into_iter()
                     .map(|s| s.to_string().into())
                     .collect(),
             ),
             allow_credentials: true,
+            expose_headers: ["Content-Type", "X-Custom"]
+                .into_iter()
+                .map(|s| s.to_string().into())
+                .collect(),
             ..Default::default()
         }
     }
@@ -1462,6 +1466,8 @@ mod tests {
         let result = validate(&options, request.inner()).expect("to not fail");
         let expected_result = ValidationResult::Preflight {
             origin: FromStr::from_str("https://www.acme.com").unwrap(),
+            // Checks that only a subset of allowed headers are returned
+            // -- i.e. whatever is requested for
             headers: Some(FromStr::from_str("Authorization").unwrap()),
         };
 
@@ -1692,13 +1698,190 @@ mod tests {
     }
 
     #[test]
-    fn preflight_validated_and_built_correctly() {}
+    fn non_cors_request_return_empty_response() {
+        let options = make_cors_options();
+        let client = make_client();
+
+        let request = client.options("/");
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+        let expected_response = Response::new();
+        assert_eq!(expected_response, response);
+    }
 
     #[test]
-    fn actual_request_validated_and_built_correctly() {}
+    fn preflight_validated_and_built_correctly() {
+        let options = make_cors_options();
+        let client = make_client();
 
-    // TODO: Preflight tests
-    // TODO: Actual requests tests
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+            hyper::method::Method::Get,
+        ));
+        let request_headers = hyper::header::AccessControlRequestHeaders(
+            vec![FromStr::from_str("Authorization").unwrap()],
+        );
+        let request_headers = Header::from(request_headers);
 
-    // Origin all (wildcard + echoed with Vary). Origin Echo
+        let request = client
+            .options("/")
+            .header(origin_header)
+            .header(method_header)
+            .header(request_headers);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+
+        let expected_response = Response::new()
+            .origin("https://www.acme.com/", false)
+            .headers(&["Authorization"])
+            .methods(&options.allowed_methods)
+            .credentials(options.allow_credentials)
+            .max_age(options.max_age);
+
+        assert_eq!(expected_response, response);
+    }
+
+    /// Tests that when All origins are allowed and send_wildcard disabled, the vary header is set
+    /// in the response and the requested origin is echoed
+    #[test]
+    fn preflight_all_origins_with_vary() {
+        let mut options = make_cors_options();
+        options.allowed_origins = AllOrSome::All;
+        options.send_wildcard = false;
+
+        let client = make_client();
+
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+            hyper::method::Method::Get,
+        ));
+        let request_headers = hyper::header::AccessControlRequestHeaders(
+            vec![FromStr::from_str("Authorization").unwrap()],
+        );
+        let request_headers = Header::from(request_headers);
+
+        let request = client
+            .options("/")
+            .header(origin_header)
+            .header(method_header)
+            .header(request_headers);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+
+        let expected_response = Response::new()
+            .origin("https://www.acme.com/", true)
+            .headers(&["Authorization"])
+            .methods(&options.allowed_methods)
+            .credentials(options.allow_credentials)
+            .max_age(options.max_age);
+
+        assert_eq!(expected_response, response);
+    }
+
+    /// Tests that when All origins are allowed and send_wildcard enabled, the origin is set to "*"
+    #[test]
+    fn preflight_all_origins_with_wildcard() {
+        let mut options = make_cors_options();
+        options.allowed_origins = AllOrSome::All;
+        options.send_wildcard = true;
+        options.allow_credentials = false;
+
+        let client = make_client();
+
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+            hyper::method::Method::Get,
+        ));
+        let request_headers = hyper::header::AccessControlRequestHeaders(
+            vec![FromStr::from_str("Authorization").unwrap()],
+        );
+        let request_headers = Header::from(request_headers);
+
+        let request = client
+            .options("/")
+            .header(origin_header)
+            .header(method_header)
+            .header(request_headers);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+
+        let expected_response = Response::new()
+            .any()
+            .headers(&["Authorization"])
+            .methods(&options.allowed_methods)
+            .credentials(options.allow_credentials)
+            .max_age(options.max_age);
+
+        assert_eq!(expected_response, response);
+    }
+
+    #[test]
+    fn actual_request_validated_and_built_correctly() {
+        let options = make_cors_options();
+        let client = make_client();
+
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let request = client.get("/").header(origin_header);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+        let expected_response = Response::new()
+            .origin("https://www.acme.com/", false)
+            .credentials(options.allow_credentials)
+            .exposed_headers(&["Content-Type", "X-Custom"]);
+
+        assert_eq!(expected_response, response);
+    }
+
+    #[test]
+    fn actual_request_all_origins_with_vary() {
+        let mut options = make_cors_options();
+        options.allowed_origins = AllOrSome::All;
+        options.send_wildcard = false;
+        options.allow_credentials = false;
+
+        let client = make_client();
+
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let request = client.get("/").header(origin_header);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+        let expected_response = Response::new()
+            .origin("https://www.acme.com/", true)
+            .credentials(options.allow_credentials)
+            .exposed_headers(&["Content-Type", "X-Custom"]);
+
+        assert_eq!(expected_response, response);
+    }
+
+    #[test]
+    fn actual_request_all_origins_with_wildcard() {
+        let mut options = make_cors_options();
+        options.allowed_origins = AllOrSome::All;
+        options.send_wildcard = true;
+        options.allow_credentials = false;
+
+        let client = make_client();
+
+        let origin_header = Header::from(
+            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+        );
+        let request = client.get("/").header(origin_header);
+
+        let response = validate_and_build(&options, request.inner()).expect("to not fail");
+        let expected_response = Response::new()
+            .any()
+            .credentials(options.allow_credentials)
+            .exposed_headers(&["Content-Type", "X-Custom"]);
+
+        assert_eq!(expected_response, response);
+    }
 }
