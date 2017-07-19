@@ -7,7 +7,7 @@ use std::io::Cursor;
 
 use rocket::Response;
 use rocket::http::Method;
-use rocket_cors::{Guard, AllowedOrigins, Responder};
+use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
@@ -46,7 +46,7 @@ fn main() {
     let options = rocket_cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-        allowed_headers: allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     };
