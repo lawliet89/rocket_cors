@@ -27,7 +27,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! rocket_cors = "0.1.3"
+//! rocket_cors = "0.1.4"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -865,7 +865,7 @@ impl Cors {
 #[doc(hidden)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct Response {
-    allow_origin: Option<AllOrSome<String>>,
+    allow_origin: Option<AllOrSome<Url>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
     allow_credentials: bool,
@@ -889,8 +889,8 @@ impl Response {
     }
 
     /// Consumes the `Response` and return an altered response with origin and `vary_origin` set
-    fn origin(mut self, origin: &str, vary_origin: bool) -> Self {
-        self.allow_origin = Some(AllOrSome::Some(origin.to_string()));
+    fn origin(mut self, origin: &Url, vary_origin: bool) -> Self {
+        self.allow_origin = Some(AllOrSome::Some(origin.clone()));
         self.vary_origin = vary_origin;
         self
     }
@@ -966,7 +966,7 @@ impl Response {
 
         let origin = match *origin {
             AllOrSome::All => "*".to_string(),
-            AllOrSome::Some(ref origin) => origin.to_string(),
+            AllOrSome::Some(ref origin) => origin.origin().unicode_serialization(),
         };
 
         response.set_raw_header("Access-Control-Allow-Origin", origin);
@@ -1345,10 +1345,10 @@ fn preflight_response(
             if options.send_wildcard {
                 response.any()
             } else {
-                response.origin(origin.as_str(), true)
+                response.origin(&origin, true)
             }
         }
-        AllOrSome::Some(_) => response.origin(origin.as_str(), false),
+        AllOrSome::Some(_) => response.origin(&origin, false),
     };
     let response = response.credentials(options.allow_credentials);
 
@@ -1434,10 +1434,10 @@ fn actual_request_response(options: &Cors, origin: Origin) -> Response {
             if options.send_wildcard {
                 response.any()
             } else {
-                response.origin(origin.as_str(), true)
+                response.origin(&origin, true)
             }
         }
-        AllOrSome::Some(_) => response.origin(origin.as_str(), false),
+        AllOrSome::Some(_) => response.origin(&origin, false),
     };
 
     let response = response.credentials(options.allow_credentials);
@@ -1564,7 +1564,8 @@ mod tests {
     fn response_sets_exposed_headers_correctly() {
         let headers = vec!["Bar", "Baz", "Foo"];
         let response = Response::new();
-        let response = response.origin("https://www.example.com", false);
+        let response =
+            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
         let response = response.exposed_headers(&headers);
 
         // Build response and check built response header
@@ -1586,7 +1587,8 @@ mod tests {
     #[test]
     fn response_sets_max_age_correctly() {
         let response = Response::new();
-        let response = response.origin("https://www.example.com", false);
+        let response =
+            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
 
         let response = response.max_age(Some(42));
 
@@ -1600,7 +1602,8 @@ mod tests {
     #[test]
     fn response_does_not_set_max_age_when_none() {
         let response = Response::new();
-        let response = response.origin("https://www.example.com", false);
+        let response =
+            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
 
         let response = response.max_age(None);
 
@@ -1714,7 +1717,8 @@ mod tests {
             .finalize();
 
         let response = Response::new();
-        let response = response.origin("https://www.example.com", false);
+        let response =
+            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
         let response = response.response(original);
         // Check CORS header
         let expected_header = vec!["https://www.example.com"];
@@ -2058,7 +2062,7 @@ mod tests {
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
 
         let expected_response = Response::new()
-            .origin("https://www.acme.com/", false)
+            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), false)
             .headers(&["Authorization"])
             .methods(&options.allowed_methods)
             .credentials(options.allow_credentials)
@@ -2097,7 +2101,7 @@ mod tests {
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
 
         let expected_response = Response::new()
-            .origin("https://www.acme.com/", true)
+            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), true)
             .headers(&["Authorization"])
             .methods(&options.allowed_methods)
             .credentials(options.allow_credentials)
@@ -2157,7 +2161,7 @@ mod tests {
 
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
         let expected_response = Response::new()
-            .origin("https://www.acme.com/", false)
+            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), false)
             .credentials(options.allow_credentials)
             .exposed_headers(&["Content-Type", "X-Custom"]);
 
@@ -2180,7 +2184,7 @@ mod tests {
 
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
         let expected_response = Response::new()
-            .origin("https://www.acme.com/", true)
+            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), true)
             .credentials(options.allow_credentials)
             .exposed_headers(&["Content-Type", "X-Custom"]);
 

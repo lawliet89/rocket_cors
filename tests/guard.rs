@@ -119,7 +119,7 @@ fn smoke_test() {
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
-    assert_eq!("https://www.acme.com/", origin_header);
+    assert_eq!("https://www.acme.com", origin_header);
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn cors_options_check() {
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
-    assert_eq!("https://www.acme.com/", origin_header);
+    assert_eq!("https://www.acme.com", origin_header);
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn cors_get_check() {
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
-    assert_eq!("https://www.acme.com/", origin_header);
+    assert_eq!("https://www.acme.com", origin_header);
 }
 
 /// This test is to check that non CORS compliant requests to GET should still work. (i.e. curl)
