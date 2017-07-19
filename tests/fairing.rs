@@ -24,7 +24,7 @@ fn panicking_route() {
 }
 
 fn make_cors_options() -> Cors {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     Cors {

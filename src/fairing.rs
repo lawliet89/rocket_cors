@@ -161,13 +161,12 @@ mod tests {
     use rocket::http::{Method, Status};
     use rocket::local::Client;
 
-    use {Cors, AllOrSome};
+    use {Cors, AllOrSome, AllowedOrigins};
 
     const CORS_ROOT: &'static str = "/my_cors";
 
     fn make_cors_options() -> Cors {
-        let (allowed_origins, failed_origins) =
-            AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
         assert!(failed_origins.is_empty());
 
         Cors {

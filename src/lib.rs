@@ -96,7 +96,7 @@
 //! extern crate rocket_cors;
 //!
 //! use rocket::http::Method;
-//! use rocket_cors::AllOrSome;
+//! use rocket_cors::{AllOrSome, AllowedOrigins};
 //!
 //! #[get("/")]
 //! fn cors<'a>() -> &'a str {
@@ -104,7 +104,7 @@
 //! }
 //!
 //! fn main() {
-//!     let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
 //!     assert!(failed_origins.is_empty());
 //!
 //!     // You can also deserialize this
@@ -164,7 +164,7 @@
 //!
 //! use rocket::Response;
 //! use rocket::http::Method;
-//! use rocket_cors::{Guard, AllOrSome, Responder};
+//! use rocket_cors::{Guard, AllOrSome, AllowedOrigins, Responder};
 //!
 //! /// Using a `Responder` -- the usual way you would use this
 //! #[get("/")]
@@ -196,7 +196,7 @@
 //! }
 //!
 //! fn main() {
-//!     let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
 //!     assert!(failed_origins.is_empty());
 //!
 //!     // You can also deserialize this
@@ -442,8 +442,10 @@ impl<'r> response::Responder<'r> for Error {
 /// An enum signifying that some of type T is allowed, or `All` (everything is allowed).
 ///
 /// `Default` is implemented for this enum and is `All`.
+///
+/// This enum is serialized and deserialized
+/// ["Externally tagged"](https://serde.rs/enum-representations.html)
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
 pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.
     All,
@@ -473,6 +475,7 @@ impl<T> AllOrSome<T> {
 }
 
 impl AllOrSome<HashSet<Url>> {
+    #[deprecated(since = "0.1.3", note = "please use `AllowedOrigins::Some` instead")]
     /// New `AllOrSome` from a list of URL strings.
     /// Returns a tuple where the first element is the struct `AllOrSome`,
     /// and the second element
@@ -565,6 +568,51 @@ impl<'de> Deserialize<'de> for Method {
     }
 }
 
+/// A list of allowed origins. Either Some origins are allowed, or all origins are allowed.
+///
+/// # Examples
+/// ```rust
+/// use rocket_cors::AllowedOrigins;
+///
+/// let all_origins = AllowedOrigins::all();
+/// let (some_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+/// assert!(failed_origins.is_empty());
+/// ```
+pub type AllowedOrigins = AllOrSome<HashSet<Url>>;
+
+impl AllowedOrigins {
+    /// Allows some origins
+    ///
+    /// Returns a tuple where the first element is the struct `AllowedOrigins`,
+    /// and the second element
+    /// is a map of strings which failed to parse into URLs and their associated parse errors.
+    pub fn some(urls: &[&str]) -> (Self, HashMap<String, url::ParseError>) {
+        let (ok_set, error_map): (Vec<_>, Vec<_>) = urls.iter()
+            .map(|s| (s.to_string(), Url::from_str(s)))
+            .partition(|&(_, ref r)| r.is_ok());
+
+        let error_map = error_map
+            .into_iter()
+            .map(|(s, r)| (s.to_string(), r.unwrap_err()))
+            .collect();
+
+        let ok_set = ok_set.into_iter().map(|(_, r)| r.unwrap()).collect();
+
+        (AllOrSome::Some(ok_set), error_map)
+    }
+
+    /// Allows all origins
+    pub fn all() -> Self {
+        AllOrSome::All
+    }
+}
+
+/// A list of allowed methods
+///
+/// The [list](https://api.rocket.rs/rocket/http/enum.Method.html)
+/// of methods is whatever is supported by Rocket.
+pub type AllowedMethods = HashSet<Method>;
+
 /// Response generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
 ///
 /// This struct can be as Fairing or in an ad-hoc manner to generate CORS response. See the
@@ -575,6 +623,70 @@ impl<'de> Deserialize<'de> for Method {
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
+///
+/// # Examples
+///
+/// You can run an example from the repository to demonstrate the JSON serialization with
+/// `cargo run --example json`.
+///
+/// ## Pure default
+/// ```rust
+/// let default = rocket_cors::Cors::default();
+/// ```
+///
+/// ## JSON Examples
+/// ### Default
+///
+/// ```json
+/// {
+///   "allowed_origins": "All",
+///   "allowed_methods": [
+///     "POST",
+///     "PATCH",
+///     "PUT",
+///     "DELETE",
+///     "HEAD",
+///     "OPTIONS",
+///     "GET"
+///   ],
+///   "allowed_headers": "All",
+///   "allow_credentials": false,
+///   "expose_headers": [],
+///   "max_age": null,
+///   "send_wildcard": false,
+///   "fairing_route_base": "/cors"
+/// }
+/// ```
+/// ### Defined
+/// ```json
+/// {
+///   "allowed_origins": {
+///     "Some": [
+///       "https://www.acme.com/"
+///     ]
+///   },
+///   "allowed_methods": [
+///     "POST",
+///     "DELETE",
+///     "GET"
+///   ],
+///   "allowed_headers": {
+///     "Some": [
+///       "Accept",
+///       "Authorization"
+///     ]
+///   },
+///   "allow_credentials": true,
+///   "expose_headers": [
+///     "Content-Type",
+///     "X-Custom"
+///   ],
+///   "max_age": 42,
+///   "send_wildcard": false,
+///   "fairing_route_base": "/mycors"
+/// }
+///
+/// ```
 #[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct Cors {
     /// Origins that are allowed to make requests.
@@ -594,7 +706,7 @@ pub struct Cors {
     ///
     /// ```
     #[serde(default)]
-    pub allowed_origins: AllOrSome<HashSet<Url>>,
+    pub allowed_origins: AllowedOrigins,
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
     ///
@@ -1348,8 +1460,7 @@ mod tests {
     use http::Method;
 
     fn make_cors_options() -> Cors {
-        let (allowed_origins, failed_origins) =
-            AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
         assert!(failed_origins.is_empty());
 
         Cors {
@@ -1424,8 +1535,7 @@ mod tests {
     fn response_allows_origin() {
         let url = "https://www.example.com";
         let origin = Origin::from_str(url).unwrap();
-        let (allowed_origins, failed_origins) =
-            AllOrSome::new_from_str_list(&["https://www.example.com"]);
+        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
         assert!(failed_origins.is_empty());
 
         not_err!(validate_origin(&origin, &allowed_origins));
@@ -1436,8 +1546,7 @@ mod tests {
     fn response_rejects_invalid_origin() {
         let url = "https://www.acme.com";
         let origin = Origin::from_str(url).unwrap();
-        let (allowed_origins, failed_origins) =
-            AllOrSome::new_from_str_list(&["https://www.example.com"]);
+        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
         assert!(failed_origins.is_empty());
 
         validate_origin(&origin, &allowed_origins).unwrap();

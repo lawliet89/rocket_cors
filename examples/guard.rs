@@ -7,7 +7,7 @@ use std::io::Cursor;
 
 use rocket::Response;
 use rocket::http::Method;
-use rocket_cors::{Guard, AllOrSome, Responder};
+use rocket_cors::{Guard, AllOrSome, AllowedOrigins, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
@@ -39,7 +39,7 @@ fn response_options(cors: Guard) -> Response {
 }
 
 fn main() {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     // You can also deserialize this
