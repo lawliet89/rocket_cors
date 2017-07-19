@@ -4,7 +4,7 @@ extern crate rocket;
 extern crate rocket_cors;
 
 use rocket::http::Method;
-use rocket_cors::AllOrSome;
+use rocket_cors::{AllowedOrigins, AllowedHeaders};
 
 #[get("/")]
 fn cors<'a>() -> &'a str {
@@ -12,19 +12,14 @@ fn cors<'a>() -> &'a str {
 }
 
 fn main() {
-    let (allowed_origins, failed_origins) = AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     // You can also deserialize this
     let options = rocket_cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-        allowed_headers: AllOrSome::Some(
-            ["Authorization", "Accept"]
-                .into_iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-        ),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     };

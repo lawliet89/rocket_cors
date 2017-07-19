@@ -60,19 +60,13 @@ fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Respo
 }
 
 fn make_cors_options() -> cors::Cors {
-    let (allowed_origins, failed_origins) =
-        cors::AllOrSome::new_from_str_list(&["https://www.acme.com"]);
+    let (allowed_origins, failed_origins) = cors::AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-        allowed_headers: cors::AllOrSome::Some(
-            ["Authorization", "Accept"]
-                .into_iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-        ),
+        allowed_headers: cors::AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     }
