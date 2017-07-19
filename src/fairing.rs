@@ -161,7 +161,7 @@ mod tests {
     use rocket::http::{Method, Status};
     use rocket::local::Client;
 
-    use {Cors, AllOrSome, AllowedOrigins};
+    use {Cors, AllOrSome, AllowedOrigins, AllowedHeaders};
 
     const CORS_ROOT: &'static str = "/my_cors";
 
@@ -172,12 +172,7 @@ mod tests {
         Cors {
             allowed_origins: allowed_origins,
             allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-            allowed_headers: AllOrSome::Some(
-                ["Authorization"]
-                    .into_iter()
-                    .map(|s| s.to_string().into())
-                    .collect(),
-            ),
+            allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             fairing_route_base: CORS_ROOT.to_string(),
 

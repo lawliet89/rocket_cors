@@ -611,7 +611,41 @@ impl AllowedOrigins {
 ///
 /// The [list](https://api.rocket.rs/rocket/http/enum.Method.html)
 /// of methods is whatever is supported by Rocket.
+///
+/// # Example
+/// ```rust
+/// use std::str::FromStr;
+/// use rocket_cors::AllowedMethods;
+///
+/// let allowed_methods: AllowedMethods = ["Get", "Post", "Delete"]
+///    .iter()
+///    .map(|s| FromStr::from_str(s).unwrap())
+///    .collect();
+/// ```
 pub type AllowedMethods = HashSet<Method>;
+
+/// A list of allowed headers
+///
+/// # Examples
+/// ```rust
+/// use rocket_cors::AllowedHeaders;
+///
+/// let all_headers = AllowedHeaders::all();
+/// let some_headers = AllowedHeaders::some(&["Authorization", "Accept"]);
+/// ```
+pub type AllowedHeaders = AllOrSome<HashSet<HeaderFieldName>>;
+
+impl AllowedHeaders {
+    /// Allow some headers
+    pub fn some(headers: &[&str]) -> Self {
+        AllOrSome::Some(headers.iter().map(|s| s.to_string().into()).collect())
+    }
+
+    /// Allows all headers
+    pub fn all() -> Self {
+        AllOrSome::All
+    }
+}
 
 /// Response generator and [Fairing](https://rocket.rs/guide/fairings/) for CORS
 ///
@@ -715,7 +749,7 @@ pub struct Cors {
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
     #[serde(default = "Cors::default_allowed_methods")]
-    pub allowed_methods: HashSet<Method>,
+    pub allowed_methods: AllowedMethods,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
     ///
@@ -1469,12 +1503,7 @@ mod tests {
                 .into_iter()
                 .map(From::from)
                 .collect(),
-            allowed_headers: AllOrSome::Some(
-                ["Authorization", "Accept"]
-                    .into_iter()
-                    .map(|s| s.to_string().into())
-                    .collect(),
-            ),
+            allowed_headers: AllowedHeaders::some(&[&"Authorization", "Accept"]),
             allow_credentials: true,
             expose_headers: ["Content-Type", "X-Custom"]
                 .into_iter()

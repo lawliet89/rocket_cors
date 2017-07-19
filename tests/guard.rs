@@ -66,12 +66,7 @@ fn make_cors_options() -> cors::Cors {
     cors::Cors {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-        allowed_headers: cors::AllOrSome::Some(
-            ["Authorization", "Accept"]
-                .into_iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-        ),
+        allowed_headers: cors::AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     }
