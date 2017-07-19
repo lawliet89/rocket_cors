@@ -121,6 +121,11 @@ fn smoke_test() {
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.acme.com/", origin_header);
 }
 
 #[test]
@@ -146,6 +151,12 @@ fn cors_options_check() {
 
     let response = req.dispatch();
     assert!(response.status().class().is_success());
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.acme.com/", origin_header);
 }
 
 #[test]
@@ -164,6 +175,12 @@ fn cors_get_check() {
     assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.acme.com/", origin_header);
 }
 
 /// This test is to check that non CORS compliant requests to GET should still work. (i.e. curl)
@@ -179,6 +196,12 @@ fn cors_get_no_origin() {
     assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 #[test]
@@ -204,6 +227,12 @@ fn cors_options_bad_origin() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 #[test]
@@ -224,6 +253,12 @@ fn cors_options_missing_origin() {
 
     let response = req.dispatch();
     assert!(response.status().class().is_success());
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 #[test]
@@ -249,6 +284,12 @@ fn cors_options_bad_request_method() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 #[test]
@@ -273,6 +314,12 @@ fn cors_options_bad_request_header() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 #[test]
@@ -288,6 +335,12 @@ fn cors_get_bad_origin() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }
 
 /// This test ensures that on a failing CORS request, the route (along with its side effects)
@@ -306,4 +359,10 @@ fn routes_failing_checks_are_not_executed() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
+    assert!(
+        response
+            .headers()
+            .get_one("Access-Control-Allow-Origin")
+            .is_none()
+    );
 }

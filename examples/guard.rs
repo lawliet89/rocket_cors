@@ -57,7 +57,10 @@ fn main() {
     };
 
     rocket::ignite()
-        .mount("/", routes![responder, responder_options, response, response_options])
+        .mount(
+            "/",
+            routes![responder, responder_options, response, response_options],
+        )
         .manage(options)
         .launch();
 }

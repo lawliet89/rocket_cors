@@ -27,7 +27,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! rocket_cors = "0.1.1"
+//! rocket_cors = "0.1.2"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -355,6 +355,12 @@ pub enum Error {
     ///
     /// This is a misconfiguration. Use `Rocket::manage` to add a CORS options to managed state.
     MissingCorsInRocketState,
+    /// The `on_response` handler of Fairing could not find the injected header from the Request.
+    /// Either some other fairing has removed it, or this is a bug.
+    MissingInjectedHeader,
+    /// The `on_response` handler of Fairing found an unknown injected header value from the
+    /// Request. Either some other fairing has modified it, or this is a bug.
+    UnknownInjectedHeader,
 }
 
 impl Error {
@@ -363,7 +369,9 @@ impl Error {
             Error::MissingOrigin | Error::OriginNotAllowed | Error::MethodNotAllowed |
             Error::HeadersNotAllowed => Status::Forbidden,
             Error::CredentialsWithWildcardOrigin |
-            Error::MissingCorsInRocketState => Status::InternalServerError,
+            Error::MissingCorsInRocketState |
+            Error::MissingInjectedHeader |
+            Error::UnknownInjectedHeader => Status::InternalServerError,
             _ => Status::BadRequest,
         }
     }
@@ -394,6 +402,14 @@ impl error::Error for Error {
             }
             Error::MissingCorsInRocketState => {
                 "A CORS Request Guard was used, but no CORS Options was available in Rocket's state"
+            }
+            Error::MissingInjectedHeader => {
+                "The `on_response` handler of Fairing could not find the injected header from the \
+                 Request. Either some other fairing has removed it, or this is a bug."
+            }
+            Error::UnknownInjectedHeader => {
+                "The `on_response` handler of Fairing found an unknown injected header value from \
+                 the Request. Either some other fairing has modified it, or this is a bug."
             }
         }
     }
