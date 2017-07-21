@@ -269,6 +269,7 @@
 #![cfg_attr(test, feature(plugin, custom_derive))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
+#![feature(conservative_impl_trait)]
 
 #[macro_use]
 extern crate log;
@@ -1057,9 +1058,9 @@ impl<'r> Guard<'r> {
         }
     }
 
-    /// Consumes the Guard and return  a `Responder` that wraps a
+    /// Consumes the Guard and return  a `rocket:response::Responder` that wraps a
     /// provided `rocket:response::Responder` with CORS headers
-    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> Responder<'r, R> {
+    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> impl response::Responder<'r> {
         self.response.responder(responder)
     }
 

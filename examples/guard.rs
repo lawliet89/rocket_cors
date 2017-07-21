@@ -1,4 +1,4 @@
-#![feature(plugin, custom_derive)]
+#![feature(plugin, custom_derive, conservative_impl_trait)]
 #![plugin(rocket_codegen)]
 extern crate rocket;
 extern crate rocket_cors;
@@ -6,19 +6,20 @@ extern crate rocket_cors;
 use std::io::Cursor;
 
 use rocket::Response;
+use rocket::response::Responder;
 use rocket::http::Method;
-use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
+use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
-fn responder(cors: Guard) -> Responder<&str> {
+fn responder(cors: Guard) -> impl Responder {
     cors.responder("Hello CORS!")
 }
 
 /// You need to define an OPTIONS route for preflight checks.
 /// These routes can just return the unit type `()`
 #[options("/")]
-fn responder_options(cors: Guard) -> Responder<()> {
+fn responder_options(cors: Guard) -> impl Responder {
     cors.responder(())
 }
 
