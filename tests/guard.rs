@@ -15,12 +15,12 @@ use rocket::local::Client;
 use rocket::response::Responder;
 
 #[options("/")]
-fn cors_options(cors: cors::Guard) -> impl Responder {
+fn cors_options<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("")
 }
 
 #[get("/")]
-fn cors(cors: cors::Guard) -> impl Responder {
+fn cors<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("Hello CORS")
 }
 
@@ -41,14 +41,14 @@ fn response(cors: cors::Guard) -> Response {
 /// `Responder` with String
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_string(cors: cors::Guard) -> impl Responder {
+fn responder_string<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_unit(cors: cors::Guard) -> impl Responder {
+fn responder_unit<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder(())
 }
 

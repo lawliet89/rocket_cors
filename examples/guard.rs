@@ -11,15 +11,21 @@ use rocket::http::Method;
 use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders};
 
 /// Using a `Responder` -- the usual way you would use this
+///
+/// Unfortunately, you have to pepper the `'r` lifetime everywhere due to a compiler bug.
+/// See https://github.com/rust-lang/rust/issues/43380
 #[get("/")]
-fn responder(cors: Guard) -> impl Responder {
+fn responder<'r>(cors: Guard<'r>) -> impl Responder<'r> {
     cors.responder("Hello CORS!")
 }
 
 /// You need to define an OPTIONS route for preflight checks.
 /// These routes can just return the unit type `()`
+///
+/// Unfortunately, you have to pepper the `'r` lifetime everywhere due to a compiler bug.
+/// See https://github.com/rust-lang/rust/issues/43380
 #[options("/")]
-fn responder_options(cors: Guard) -> impl Responder {
+fn responder_options<'r>(cors: Guard<'r>) -> impl Responder<'r> {
     cors.responder(())
 }
 
