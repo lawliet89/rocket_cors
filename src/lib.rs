@@ -296,6 +296,7 @@ mod fairing;
 
 pub mod headers;
 
+use std::borrow::Cow;
 use std::collections::{HashSet, HashMap};
 use std::error;
 use std::fmt;
@@ -826,19 +827,6 @@ impl Cors {
         "/cors".to_string()
     }
 
-    /// Validate a request and then return a CORS Response
-    ///
-    /// You will usually not have to use this function but simply place a r
-    /// equest guard in the route argument for the `Guard` type.
-    ///
-    /// This is useful if you want an even more ad-hoc based approach to respond to
-    /// CORS by using a `Cors` that is not in Rocket's managed state.
-    #[doc(hidden)] // Need to figure out a way to do this
-    pub fn validate_request<'a, 'r>(&'a self, request: &'a Request<'r>) -> Result<Response, Error> {
-        let response = validate_and_build(self, request)?;
-        Ok(response)
-    }
-
     /// Validates if any of the settings are disallowed or incorrect
     ///
     /// This is run during initial Fairing attachment
@@ -1132,6 +1120,49 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
 impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R> {
     fn respond_to(self, request: &Request) -> response::Result<'r> {
         self.respond(request)
+    }
+}
+
+/// The type of closure that will be used to generate a Rocket `Responder`
+/// after passing CORS checks.
+/// This is used in the "truly manual" mode of CORS handling.
+///
+/// See the documentation at the [crate root](index.html) for usage information.
+pub type GuardHandler<'r, R> = Fn(Guard<'r>) -> R;
+
+/// A Manual Responder used in the "truly manual" mode of operation.
+///
+/// See the documentation at the [crate root](index.html) for usage information.
+pub struct ManualResponder<'r, R> {
+    options: Cow<'r, Cors>,
+    handler: Box<GuardHandler<'r, R>>,
+}
+
+impl<'r, R: response::Responder<'r>> ManualResponder<'r, R> {
+    /// Create a new manual responder by passing in either a borrowed or owned `Cors` option.
+    ///
+    /// A borrowed `Cors` option must live for the entirety of the `'r` lifetime which is the
+    /// lifetime of the entire Rocket request.
+    pub fn new(options: Cow<'r, Cors>, handler: Box<GuardHandler<'r, R>>) -> Self {
+        Self { options, handler }
+    }
+
+    fn build_guard(&self, request: &Request) -> Result<Guard<'r>, Error> {
+        let response = Response::validate_and_build(&self.options, request)?;
+        Ok(Guard::new(response))
+    }
+}
+
+impl<'r, R: response::Responder<'r>> response::Responder<'r> for ManualResponder<'r, R> {
+    fn respond_to(self, request: &Request) -> response::Result<'r> {
+        let guard = match self.build_guard(request) {
+            Ok(guard) => guard,
+            Err(err) => {
+                error_!("CORS error: {}", err);
+                return Err(err.status());
+            }
+        };
+        (self.handler)(guard).respond_to(request)
     }
 }
 
@@ -1564,8 +1595,10 @@ mod tests {
     fn response_sets_exposed_headers_correctly() {
         let headers = vec!["Bar", "Baz", "Foo"];
         let response = Response::new();
-        let response =
-            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
+        let response = response.origin(
+            &FromStr::from_str("https://www.example.com").unwrap(),
+            false,
+        );
         let response = response.exposed_headers(&headers);
 
         // Build response and check built response header
@@ -1587,8 +1620,10 @@ mod tests {
     #[test]
     fn response_sets_max_age_correctly() {
         let response = Response::new();
-        let response =
-            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
+        let response = response.origin(
+            &FromStr::from_str("https://www.example.com").unwrap(),
+            false,
+        );
 
         let response = response.max_age(Some(42));
 
@@ -1602,8 +1637,10 @@ mod tests {
     #[test]
     fn response_does_not_set_max_age_when_none() {
         let response = Response::new();
-        let response =
-            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
+        let response = response.origin(
+            &FromStr::from_str("https://www.example.com").unwrap(),
+            false,
+        );
 
         let response = response.max_age(None);
 
@@ -1717,8 +1754,10 @@ mod tests {
             .finalize();
 
         let response = Response::new();
-        let response =
-            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), false);
+        let response = response.origin(
+            &FromStr::from_str("https://www.example.com").unwrap(),
+            false,
+        );
         let response = response.response(original);
         // Check CORS header
         let expected_header = vec!["https://www.example.com"];
