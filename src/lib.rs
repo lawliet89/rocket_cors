@@ -150,7 +150,7 @@
 //! overwrite the previous CORS headers.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, custom_derive)]
+//! #![feature(plugin, custom_derive, conservative_impl_trait)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -158,19 +158,26 @@
 //! use std::io::Cursor;
 //!
 //! use rocket::Response;
+//! use rocket::response::Responder;
 //! use rocket::http::Method;
-//! use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
+//! use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders};
 //!
 //! /// Using a `Responder` -- the usual way you would use this
+//! ///
+//! /// Unfortunately, you have to pepper the `'r` lifetime everywhere due to a compiler bug.
+//! /// See https://github.com/rust-lang/rust/issues/43380
 //! #[get("/")]
-//! fn responder(cors: Guard) -> Responder<&str> {
+//! fn responder<'r>(cors: Guard<'r>) -> impl Responder<'r> {
 //!     cors.responder("Hello CORS!")
 //! }
 //!
 //! /// You need to define an OPTIONS route for preflight checks.
 //! /// These routes can just return the unit type `()`
+//! ///
+//! /// Unfortunately, you have to pepper the `'r` lifetime everywhere due to a compiler bug.
+//! /// See https://github.com/rust-lang/rust/issues/43380
 //! #[options("/")]
-//! fn responder_options(cors: Guard) -> Responder<()> {
+//! fn responder_options<'r>(cors: Guard<'r>) -> impl Responder<'r> {
 //!     cors.responder(())
 //! }
 //!
@@ -204,7 +211,10 @@
 //!     };
 //!
 //!     rocket::ignite()
-//!         .mount("/", routes![responder, responder_options, response, response_options])
+//!         .mount(
+//!             "/",
+//!             routes![responder, responder_options, response, response_options],
+//!         )
 //!         .manage(options)
 //!         .launch();
 //! }
@@ -269,6 +279,7 @@
 #![cfg_attr(test, feature(plugin, custom_derive))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
+#![feature(conservative_impl_trait)]
 
 #[macro_use]
 extern crate log;
@@ -1057,9 +1068,9 @@ impl<'r> Guard<'r> {
         }
     }
 
-    /// Consumes the Guard and return  a `Responder` that wraps a
+    /// Consumes the Guard and return  a `rocket:response::Responder` that wraps a
     /// provided `rocket:response::Responder` with CORS headers
-    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> Responder<'r, R> {
+    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> impl response::Responder<'r> {
         self.response.responder(responder)
     }
 

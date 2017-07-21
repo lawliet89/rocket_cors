@@ -1,6 +1,6 @@
 //! This crate tests using rocket_cors using the per-route handling with request guard
 
-#![feature(plugin, custom_derive)]
+#![feature(plugin, custom_derive, conservative_impl_trait)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;
@@ -12,14 +12,15 @@ use rocket::{Response, State};
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
+use rocket::response::Responder;
 
 #[options("/")]
-fn cors_options(cors: cors::Guard) -> cors::Responder<&str> {
+fn cors_options<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("")
 }
 
 #[get("/")]
-fn cors(cors: cors::Guard) -> cors::Responder<&str> {
+fn cors<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("Hello CORS")
 }
 
@@ -40,14 +41,14 @@ fn response(cors: cors::Guard) -> Response {
 /// `Responder` with String
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_string(cors: cors::Guard) -> cors::Responder<String> {
+fn responder_string<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_unit(cors: cors::Guard) -> cors::Responder<()> {
+fn responder_unit<'r>(cors: cors::Guard<'r>) -> impl Responder<'r> {
     cors.responder(())
 }
 
@@ -55,7 +56,7 @@ struct SomeState;
 /// Borrow `SomeState` from Rocket
 #[allow(unmounted_route)]
 #[get("/")]
-fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Responder<'r, &'r str> {
+fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> impl Responder<'r> {
     cors.responder("hmm")
 }
 
