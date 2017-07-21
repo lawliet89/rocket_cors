@@ -19,7 +19,7 @@
 //! stable. See
 //! [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
 //!
-//! In particular, `rocket_cors` is currently targetted for `nightly-2017-07-13`. Newer nightlies
+//! In particular, `rocket_cors` is currently targetted for `nightly-2017-07-21`. Newer nightlies
 //! might work, but it's not guaranteed.
 //!
 //! ## Installation
