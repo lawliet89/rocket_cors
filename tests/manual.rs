@@ -1,6 +1,6 @@
 //! This crate tests using rocket_cors using manual mode
 
-#![feature(plugin, custom_derive, conservative_impl_trait)]
+#![feature(plugin, conservative_impl_trait)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;
