@@ -1,5 +1,5 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
-#![feature(plugin, custom_derive)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;

@@ -1,6 +1,6 @@
 //! This crate tests using rocket_cors using Fairings
 
-#![feature(plugin, custom_derive)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;

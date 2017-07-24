@@ -1,4 +1,4 @@
-#![feature(plugin, custom_derive)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 extern crate rocket;
 extern crate rocket_cors;
@@ -23,7 +23,7 @@ fn responder_options(cors: Guard) -> Responder<()> {
 }
 
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
-#[get("/responder")]
+#[get("/response")]
 fn response(cors: Guard) -> Response {
     let mut response = Response::new();
     response.set_sized_body(Cursor::new("Hello CORS!"));
@@ -32,7 +32,7 @@ fn response(cors: Guard) -> Response {
 
 /// You need to define an OPTIONS route for preflight checks.
 /// These routes can just return the unit type `()`
-#[options("/responder")]
+#[options("/response")]
 fn response_options(cors: Guard) -> Response {
     let response = Response::new();
     cors.response(response)
