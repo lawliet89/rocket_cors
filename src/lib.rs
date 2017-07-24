@@ -27,7 +27,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! rocket_cors = "0.1.4"
+//! rocket_cors = "0.2.0"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
