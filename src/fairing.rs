@@ -105,6 +105,10 @@ fn on_response_wrapper(
     if request.method() == http::Method::Options && request.method() == http::Method::Options &&
         request.route().is_none()
     {
+        info_!(
+            "CORS Fairing: Turned missing route {} into an OPTIONS pre-flight request",
+            request
+        );
         response.set_status(Status::NoContent);
         let _ = response.take_body();
     }
