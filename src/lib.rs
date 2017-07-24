@@ -266,7 +266,7 @@
     while_true,
 )]
 
-#![cfg_attr(test, feature(plugin, custom_derive))]
+#![cfg_attr(test, feature(plugin))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
@@ -837,7 +837,51 @@ impl Cors {
 
         Ok(())
     }
+
+    /// Manually respond to a request with CORS checks and headers using an Owned `Cors`.
+    ///
+    /// Use this variant when your `Cors` struct will not live at least as long as the whole `'r`
+    /// lifetime of the request.
+    ///
+    /// After the CORS checks are done, the passed in handler closure will be run to generate a
+    /// final response. You will have to merge your response with the `Guard` that you have been
+    /// passed in to include the CORS headers.
+    ///
+    /// See the documentation at the [crate root](index.html) for usage information.
+    pub fn respond_owned<'r, F, R>(self, handler: F) -> Result<ManualResponder<'r, F, R>, Error>
+    where
+        F: Fn(Guard<'r>) -> R + 'r,
+        R: response::Responder<'r>,
+    {
+        self.validate()?;
+        Ok(ManualResponder::new(Cow::Owned(self), handler))
+    }
+
+    /// Manually respond to a request with CORS checks and headers using a borrowed `Cors`.
+    ///
+    /// Use this variant when your `Cors` struct will live at least as long as the whole `'r`
+    /// lifetime of the request. If you are getting your `Cors` from Rocket's state, you will have
+    /// to use the [`inner` function](https://api.rocket.rs/rocket/struct.State.html#method.inner)
+    /// to get a longer borrowed lifetime.
+    ///
+    /// After the CORS checks are done, the passed in handler closure will be run to generate a
+    /// final response. You will have to merge your response with the `Guard` that you have been
+    /// passed in to include the CORS headers.
+    ///
+    /// See the documentation at the [crate root](index.html) for usage information.
+    pub fn respond_borrowed<'r, F, R>(
+        &'r self,
+        handler: F,
+    ) -> Result<ManualResponder<'r, F, R>, Error>
+    where
+        F: Fn(Guard<'r>) -> R + 'r,
+        R: response::Responder<'r>,
+    {
+        self.validate()?;
+        Ok(ManualResponder::new(Cow::Borrowed(self), handler))
+    }
 }
+
 
 /// A CORS Response which provides the following CORS headers:
 ///
@@ -1123,28 +1167,31 @@ impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R
     }
 }
 
-/// The type of closure that will be used to generate a Rocket `Responder`
-/// after passing CORS checks.
-/// This is used in the "truly manual" mode of CORS handling.
-///
-/// See the documentation at the [crate root](index.html) for usage information.
-pub type GuardHandler<'r, R> = Fn(Guard<'r>) -> R;
-
 /// A Manual Responder used in the "truly manual" mode of operation.
 ///
 /// See the documentation at the [crate root](index.html) for usage information.
-pub struct ManualResponder<'r, R> {
+pub struct ManualResponder<'r, F, R> {
     options: Cow<'r, Cors>,
-    handler: Box<GuardHandler<'r, R>>,
+    handler: F,
+    marker: PhantomData<R>,
 }
 
-impl<'r, R: response::Responder<'r>> ManualResponder<'r, R> {
+impl<'r, F, R> ManualResponder<'r, F, R>
+where
+    F: Fn(Guard<'r>) -> R + 'r,
+    R: response::Responder<'r>,
+{
     /// Create a new manual responder by passing in either a borrowed or owned `Cors` option.
     ///
     /// A borrowed `Cors` option must live for the entirety of the `'r` lifetime which is the
     /// lifetime of the entire Rocket request.
-    pub fn new(options: Cow<'r, Cors>, handler: Box<GuardHandler<'r, R>>) -> Self {
-        Self { options, handler }
+    fn new(options: Cow<'r, Cors>, handler: F) -> Self {
+        let marker = PhantomData;
+        Self {
+            options,
+            handler,
+            marker,
+        }
     }
 
     fn build_guard(&self, request: &Request) -> Result<Guard<'r>, Error> {
@@ -1153,7 +1200,11 @@ impl<'r, R: response::Responder<'r>> ManualResponder<'r, R> {
     }
 }
 
-impl<'r, R: response::Responder<'r>> response::Responder<'r> for ManualResponder<'r, R> {
+impl<'r, F, R> response::Responder<'r> for ManualResponder<'r, F, R>
+where
+    F: Fn(Guard<'r>) -> R + 'r,
+    R: response::Responder<'r>,
+{
     fn respond_to(self, request: &Request) -> response::Result<'r> {
         let guard = match self.build_guard(request) {
             Ok(guard) => guard,
