@@ -76,7 +76,7 @@
 //! |:---------------------------------------:|:-------:|:-------------:|:------:|
 //! |         Must apply to all routes        |    ✔    |       ✗       |    ✗   |
 //! | Different settings for different routes |    ✗    |       ✗       |    ✔   |
-//! |        Must define OPTIONS route        |    ✗    |       ✔       |    ✔   |
+//! |     May define custom OPTIONS routes    |    ✗    |       ✔       |    ✔   |
 //!
 //! ### Fairing
 //!
@@ -128,16 +128,16 @@
 //!
 //! Using request guard requires you to sacrifice the convenience of Fairings for being able to
 //! opt some routes out of CORS checks and enforcement. _BUT_ you are still restricted to only
-//! one set of CORS settings and you will now have to define `OPTIONS` routes for all the routes
-//! you want to have CORS checks on. The `OPTIONS` routes are used for CORS preflight checks.
+//! one set of CORS settings and you have to mount additional routes to catch and process OPTIONS
+//! requests. The `OPTIONS` routes are used for CORS preflight checks.
 //!
 //! You will have to do the following:
 //!
 //! - Create a [`Cors` struct](struct.Cors.html) and during Rocket's ignite, add the struct to
 //! Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
-//! - For all the routes that you want to enforce CORS on, you have to define a `OPTIONS` route
-//! for the path. You can use [dynamic segments](https://rocket.rs/guide/requests/#dynamic-segments)
-//! to reduce the number of routes you have to define.
+//! - For all the routes that you want to enforce CORS on, you can mount either some
+//! [catch all route](fn.catch_all_options_routes.html) or define your own route for the OPTIONS
+//! verb.
 //! - Then in all the routes you want to enforce CORS on, add a
 //! [Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
 //! [`Guard`](struct.Guard.html) struct in the route arguments. You should not wrap this in an
@@ -146,11 +146,8 @@
 //! - In your routes, to add CORS headers to your responses, use the appropriate functions on the
 //! [`Guard`](struct.Guard.html) for a `Response` or a `Responder`.
 //!
-//! You can mix this with the "manual" checks, but whichever `Response` is the last merged will
-//! overwrite the previous CORS headers.
-//!
 //! ```rust,no_run
-//! #![feature(plugin, custom_derive)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -167,27 +164,24 @@
 //!     cors.responder("Hello CORS!")
 //! }
 //!
-//! /// You need to define an OPTIONS route for preflight checks.
-//! /// These routes can just return the unit type `()`
-//! #[options("/")]
-//! fn responder_options(cors: Guard) -> Responder<()> {
-//!     cors.responder(())
-//! }
-//!
 //! /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
-//! #[get("/responder")]
+//! #[get("/response")]
 //! fn response(cors: Guard) -> Response {
 //!     let mut response = Response::new();
 //!     response.set_sized_body(Cursor::new("Hello CORS!"));
 //!     cors.response(response)
 //! }
 //!
-//! /// You need to define an OPTIONS route for preflight checks.
-//! /// These routes can just return the unit type `()`
-//! #[options("/responder")]
-//! fn response_options(cors: Guard) -> Response {
-//!     let response = Response::new();
-//!     cors.response(response)
+//! /// Manually mount an OPTIONS route for your own handling
+//! #[options("/manual")]
+//! fn manual_options(cors: Guard) -> Responder<&str> {
+//!     cors.responder("Manual OPTIONS preflight handling")
+//! }
+//!
+//! /// Manually mount an OPTIONS route for your own handling
+//! #[get("/manual")]
+//! fn manual(cors: Guard) -> Responder<&str> {
+//!     cors.responder("Manual OPTIONS preflight handling")
 //! }
 //!
 //! fn main() {
@@ -204,11 +198,17 @@
 //!     };
 //!
 //!     rocket::ignite()
-//!         .mount("/", routes![responder, responder_options, response, response_options])
+//!         .mount(
+//!             "/",
+//!             routes![responder, response],
+//!         )
+//!         // Mount the routes to catch all the OPTIONS pre-flight requests
+//!         .mount("/", rocket_cors::catch_all_options_routes())
+//!         // You can also manually mount an OPTIONS route that will be used instead
+//!         .mount("/", routes![manual, manual_options])
 //!         .manage(options)
 //!         .launch();
 //! }
-//!
 //! ```
 //!
 //! ## Truly Manual
@@ -338,15 +338,6 @@
 //!     )
 //! }
 //!
-//! /// You need to define an OPTIONS route for preflight checks.
-//! /// These routes can just return the unit type `()`
-//! #[options("/")]
-//! fn borrowed_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-//!     options.inner().respond_borrowed(
-//!         |guard| guard.responder(()),
-//!     )
-//! }
-//!
 //! /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
 //! #[get("/response")]
 //! fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
@@ -355,15 +346,6 @@
 //!
 //!     options.inner().respond_borrowed(
 //!         move |guard| guard.response(response),
-//!     )
-//! }
-//!
-//! /// You need to define an OPTIONS route for preflight checks.
-//! /// These routes can just return the unit type `()`
-//! #[options("/response")]
-//! fn response_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-//!     options.inner().respond_borrowed(
-//!         move |guard| guard.response(Response::new()),
 //!     )
 //! }
 //!
@@ -387,11 +369,10 @@
 //!             "/",
 //!             routes![
 //!                 borrowed,
-//!                 borrowed_options,
 //!                 response,
-//!                 response_options,
 //!             ],
 //!         )
+//!         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
 //!         .manage(cors_options())
 //!         .launch();
 //! }
@@ -1723,6 +1704,51 @@ fn actual_request_response(options: &Cors, origin: Origin) -> Response {
     );
 
     response
+}
+
+/// Returns "catch all" OPTIONS routes that you can mount to catch all OPTIONS request. Only works
+/// if you have put a `Cors` struct into Rocket's managed state.
+///
+/// This route has very high rank (and therefore low priority) of
+/// [max value](https://doc.rust-lang.org/nightly/std/primitive.isize.html#method.max_value)
+/// so you can define your own to override this route's behaviour.
+///
+/// See the documentation at the [crate root](index.html) for usage information.
+pub fn catch_all_options_routes() -> Vec<rocket::Route> {
+    vec![
+        rocket::Route::ranked(
+            isize::max_value(),
+            http::Method::Options,
+            "/",
+            catch_all_options_route_handler
+        ),
+        rocket::Route::ranked(
+            isize::max_value(),
+            http::Method::Options,
+            "/<catch_all_options_route..>",
+            catch_all_options_route_handler
+        ),
+    ]
+}
+
+/// Handler for the "catch all options route"
+fn catch_all_options_route_handler<'r>(
+    request: &'r Request,
+    _: rocket::Data,
+) -> rocket::handler::Outcome<'r> {
+
+    let guard: Guard = match request.guard() {
+        Outcome::Success(guard) => guard,
+        Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
+        Outcome::Forward(()) => unreachable!("Should not be reachable"),
+    };
+
+    info_!(
+        "\"Catch all\" handling of CORS `OPTIONS` preflight for request {}",
+        request
+    );
+
+    rocket::handler::Outcome::from(request, guard.responder(()))
 }
 
 #[cfg(test)]

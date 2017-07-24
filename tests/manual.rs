@@ -16,25 +16,10 @@ use rocket::response::Responder;
 use rocket_cors::*;
 
 /// Using a borrowed `Cors`
-#[options("/")]
-fn cors_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-    options.inner().respond_borrowed(
-        |guard| guard.responder(()),
-    )
-}
-
-/// Using a borrowed `Cors`
 #[get("/")]
 fn cors<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
     options.inner().respond_borrowed(
         |guard| guard.responder("Hello CORS"),
-    )
-}
-
-#[options("/panic")]
-fn panicking_route_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-    options.inner().respond_borrowed(
-        |guard| guard.responder(()),
     )
 }
 
@@ -43,6 +28,22 @@ fn panicking_route<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
     options.inner().respond_borrowed(|_| -> () {
         panic!("This route will panic");
     })
+}
+
+/// Respond with an owned option instead
+#[options("/owned")]
+fn owned_options<'r>() -> impl Responder<'r> {
+    let borrow = make_different_cors_options();
+
+    borrow.respond_owned(|guard| guard.responder("Manual CORS Preflight"))
+}
+
+/// Respond with an owned option instead
+#[get("/owned")]
+fn owned<'r>() -> impl Responder<'r> {
+    let borrow = make_different_cors_options();
+
+    borrow.respond_owned(|guard| guard.responder("Hello CORS Owned"))
 }
 
 // The following routes tests that the routes can be compiled with manual CORS
@@ -68,15 +69,6 @@ fn borrow<'r>(options: State<'r, Cors>, test_state: State<'r, TestState>) -> imp
     })
 }
 
-/// Respond with an owned option instead
-#[allow(unmounted_route)]
-#[get("/")]
-fn owned<'r>() -> impl Responder<'r> {
-    let borrow = make_cors_options();
-
-    borrow.respond_owned(|guard| guard.responder("Hello CORS"))
-}
-
 fn make_cors_options() -> Cors {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
@@ -90,14 +82,25 @@ fn make_cors_options() -> Cors {
     }
 }
 
+fn make_different_cors_options() -> Cors {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
+    assert!(failed_origins.is_empty());
+
+    Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    }
+}
+
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
-        .mount(
-            "/",
-            routes![cors, cors_options, panicking_route, panicking_route_options],
-        )
+        .mount("/", routes![cors, panicking_route])
+        .mount("/", routes![owned, owned_options])
+        .mount("/", catch_all_options_routes()) // mount the catch all routes
         .manage(make_cors_options())
-        .attach(make_cors_options())
 }
 
 #[test]
@@ -144,7 +147,7 @@ fn smoke_test() {
 }
 
 #[test]
-fn cors_options_check() {
+fn cors_options_borrowed_check() {
     let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
@@ -174,7 +177,7 @@ fn cors_options_check() {
 }
 
 #[test]
-fn cors_get_check() {
+fn cors_get_borrowed_check() {
     let client = Client::new(rocket()).unwrap();
 
     let origin_header = Header::from(
@@ -369,4 +372,64 @@ fn routes_failing_checks_are_not_executed() {
             .get_one("Access-Control-Allow-Origin")
             .is_none()
     );
+}
+
+/// Manual OPTIONS routes are called
+#[test]
+fn cors_options_owned_check() {
+    let rocket = rocket();
+    let client = Client::new(rocket).unwrap();
+
+    let origin_header = Header::from(
+        hyper::header::Origin::from_str("https://www.example.com").unwrap(),
+    );
+    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+        hyper::method::Method::Get,
+    ));
+    let request_headers = hyper::header::AccessControlRequestHeaders(
+        vec![FromStr::from_str("Authorization").unwrap()],
+    );
+    let request_headers = Header::from(request_headers);
+    let req = client
+        .options("/owned")
+        .header(origin_header)
+        .header(method_header)
+        .header(request_headers);
+
+    let mut response = req.dispatch();
+    let body_str = response.body().and_then(|body| body.into_string());
+    assert!(response.status().class().is_success());
+    assert_eq!(body_str, Some("Manual CORS Preflight".to_string()));
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.example.com", origin_header);
+}
+
+/// Owned manual response works
+#[test]
+fn cors_get_owned_check() {
+    let client = Client::new(rocket()).unwrap();
+
+    let origin_header = Header::from(
+        hyper::header::Origin::from_str("https://www.example.com").unwrap(),
+    );
+    let authorization = Header::new("Authorization", "let me in");
+    let req = client.get("/owned").header(origin_header).header(
+        authorization,
+    );
+
+    let mut response = req.dispatch();
+    println!("{:?}", response);
+    assert!(response.status().class().is_success());
+    let body_str = response.body().and_then(|body| body.into_string());
+    assert_eq!(body_str, Some("Hello CORS Owned".to_string()));
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.example.com", origin_header);
 }

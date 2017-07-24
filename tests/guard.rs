@@ -13,11 +13,6 @@ use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
 
-#[options("/")]
-fn cors_options(cors: cors::Guard) -> cors::Responder<&str> {
-    cors.responder("")
-}
-
 #[get("/")]
 fn cors(cors: cors::Guard) -> cors::Responder<&str> {
     cors.responder("Hello CORS")
@@ -28,33 +23,39 @@ fn panicking_route(_cors: cors::Guard) {
     panic!("This route will panic");
 }
 
-// The following routes tests that the routes can be compiled with ad-hoc CORS Response/Responders
+/// Manually specify our own OPTIONS route
+#[options("/manual")]
+fn cors_manual_options(cors: cors::Guard) -> cors::Responder<&str> {
+    cors.responder("Manual CORS Preflight")
+}
+
+/// Manually specify our own OPTIONS route
+#[get("/manual")]
+fn cors_manual(cors: cors::Guard) -> cors::Responder<&str> {
+    cors.responder("Hello CORS")
+}
 
 /// Using a `Response` instead of a `Responder`
-#[allow(unmounted_route)]
-#[get("/")]
+#[get("/response")]
 fn response(cors: cors::Guard) -> Response {
     cors.response(Response::new())
 }
 
 /// `Responder` with String
-#[allow(unmounted_route)]
-#[get("/")]
+#[get("/responder/string")]
 fn responder_string(cors: cors::Guard) -> cors::Responder<String> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
-#[allow(unmounted_route)]
-#[get("/")]
+#[get("/responder/unit")]
 fn responder_unit(cors: cors::Guard) -> cors::Responder<()> {
     cors.responder(())
 }
 
 struct SomeState;
 /// Borrow `SomeState` from Rocket
-#[allow(unmounted_route)]
-#[get("/")]
+#[get("/state")]
 fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Responder<'r, &'r str> {
     cors.responder("hmm")
 }
@@ -74,8 +75,12 @@ fn make_cors_options() -> cors::Cors {
 
 fn make_rocket() -> rocket::Rocket {
     rocket::ignite()
-        .mount("/", routes![cors, cors_options, panicking_route])
+        .mount("/", routes![cors, panicking_route])
+        .mount("/", routes![response, responder_string, responder_unit, state])
+        .mount("/", cors::catch_all_options_routes()) // mount the catch all routes
+        .mount("/", routes![cors_manual, cors_manual_options]) // manual OPTIOONS routes
         .manage(make_cors_options())
+        .manage(SomeState)
 }
 
 #[test]
@@ -122,8 +127,9 @@ fn smoke_test() {
     assert_eq!("https://www.acme.com", origin_header);
 }
 
+/// Check the "catch all" OPTIONS route works for `/`
 #[test]
-fn cors_options_check() {
+fn cors_options_catch_all_check() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
@@ -139,6 +145,39 @@ fn cors_options_check() {
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
+        .header(origin_header)
+        .header(method_header)
+        .header(request_headers);
+
+    let response = req.dispatch();
+    assert!(response.status().class().is_success());
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.acme.com", origin_header);
+}
+
+
+/// Check the "catch all" OPTIONS route works for other routes
+#[test]
+fn cors_options_catch_all_check_other_routes() {
+    let rocket = make_rocket();
+    let client = Client::new(rocket).unwrap();
+
+    let origin_header = Header::from(
+        hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+    );
+    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+        hyper::method::Method::Get,
+    ));
+    let request_headers = hyper::header::AccessControlRequestHeaders(
+        vec![FromStr::from_str("Authorization").unwrap()],
+    );
+    let request_headers = Header::from(request_headers);
+    let req = client
+        .options("/response/unit")
         .header(origin_header)
         .header(method_header)
         .header(request_headers);
@@ -359,4 +398,39 @@ fn routes_failing_checks_are_not_executed() {
             .get_one("Access-Control-Allow-Origin")
             .is_none()
     );
+}
+
+/// This test ensures that manually mounted CORS OPTIONS routes are used even in the presence of
+/// a "catch all" route.
+#[test]
+fn overridden_options_routes_are_used() {
+    let rocket = make_rocket();
+    let client = Client::new(rocket).unwrap();
+
+    let origin_header = Header::from(
+        hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
+    );
+    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
+        hyper::method::Method::Get,
+    ));
+    let request_headers = hyper::header::AccessControlRequestHeaders(
+        vec![FromStr::from_str("Authorization").unwrap()],
+    );
+    let request_headers = Header::from(request_headers);
+    let req = client
+        .options("/manual")
+        .header(origin_header)
+        .header(method_header)
+        .header(request_headers);
+
+    let mut response = req.dispatch();
+    let body_str = response.body().and_then(|body| body.into_string());
+    assert!(response.status().class().is_success());
+    assert_eq!(body_str, Some("Manual CORS Preflight".to_string()));
+
+    let origin_header = response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .expect("to exist");
+    assert_eq!("https://www.acme.com", origin_header);
 }
