@@ -15,13 +15,6 @@ fn responder(cors: Guard) -> Responder<&str> {
     cors.responder("Hello CORS!")
 }
 
-/// You need to define an OPTIONS route for preflight checks.
-/// These routes can just return the unit type `()`
-#[options("/")]
-fn responder_options(cors: Guard) -> Responder<()> {
-    cors.responder(())
-}
-
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
 #[get("/response")]
 fn response(cors: Guard) -> Response {
@@ -30,12 +23,16 @@ fn response(cors: Guard) -> Response {
     cors.response(response)
 }
 
-/// You need to define an OPTIONS route for preflight checks.
-/// These routes can just return the unit type `()`
-#[options("/response")]
-fn response_options(cors: Guard) -> Response {
-    let response = Response::new();
-    cors.response(response)
+/// Manually mount an OPTIONS route for your own handling
+#[options("/manual")]
+fn manual_options(cors: Guard) -> Responder<&str> {
+    cors.responder("Manual OPTIONS preflight handling")
+}
+
+/// Manually mount an OPTIONS route for your own handling
+#[get("/manual")]
+fn manual(cors: Guard) -> Responder<&str> {
+    cors.responder("Manual OPTIONS preflight handling")
 }
 
 fn main() {
@@ -54,8 +51,12 @@ fn main() {
     rocket::ignite()
         .mount(
             "/",
-            routes![responder, responder_options, response, response_options],
+            routes![responder, response],
         )
+        // Mount the routes to catch all the OPTIONS pre-flight requests
+        .mount("/", rocket_cors::catch_all_options_routes())
+        // You can also manually mount an OPTIONS route that will be used instead
+        .mount("/", routes![manual, manual_options])
         .manage(options)
         .launch();
 }

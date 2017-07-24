@@ -18,15 +18,6 @@ fn borrowed<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
     )
 }
 
-/// You need to define an OPTIONS route for preflight checks.
-/// These routes can just return the unit type `()`
-#[options("/")]
-fn borrowed_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-    options.inner().respond_borrowed(
-        |guard| guard.responder(()),
-    )
-}
-
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
 #[get("/response")]
 fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
@@ -38,15 +29,6 @@ fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
     )
 }
 
-/// You need to define an OPTIONS route for preflight checks.
-/// These routes can just return the unit type `()`
-#[options("/response")]
-fn response_options<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-    options.inner().respond_borrowed(
-        move |guard| guard.response(Response::new()),
-    )
-}
-
 /// Create and use an ad-hoc Cors
 #[get("/owned")]
 fn owned<'r>() -> impl Responder<'r> {
@@ -54,7 +36,8 @@ fn owned<'r>() -> impl Responder<'r> {
     options.respond_owned(|guard| guard.responder("Hello CORS"))
 }
 
-/// You need to define an OPTIONS route for preflight checks.
+/// You need to define an OPTIONS route for preflight checks if you want to use `Cors` struct
+/// that is not in Rocket's managed state.
 /// These routes can just return the unit type `()`
 #[options("/owned")]
 fn owned_options<'r>() -> impl Responder<'r> {
@@ -82,13 +65,12 @@ fn main() {
             "/",
             routes![
                 borrowed,
-                borrowed_options,
                 response,
-                response_options,
                 owned,
                 owned_options,
             ],
         )
+        .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options())
         .launch();
 }
