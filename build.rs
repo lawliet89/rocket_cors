@@ -44,13 +44,13 @@ fn main() {
                 printerr!(
                     "{} {}",
                     Red.bold().paint("Error:"),
-                    White.paint("rowdy requires a nightly version of Rust.")
+                    White.paint("rocket_cors requires a nightly version of Rust.")
                 );
                 print_version_err(&*version, &*date);
                 printerr!(
                     "{}{}{}",
                     Blue.paint("See the README ("),
-                    White.paint("https://github.com/lawliet89/rowdy"),
+                    White.paint("https://github.com/lawliet89/rocket_cors"),
                     Blue.paint(") for more information.")
                 );
                 panic!("Aborting compilation due to incompatible compiler.")
@@ -60,7 +60,7 @@ fn main() {
                 printerr!(
                     "{} {}",
                     Red.bold().paint("Error:"),
-                    White.paint("rowdy requires a more recent version of rustc.")
+                    White.paint("rocket_cors requires a more recent version of rustc.")
                 );
                 printerr!(
                     "{}{}{}",
@@ -75,7 +75,7 @@ fn main() {
         _ => {
             println!(
                 "cargo:warning={}",
-                "rowdy was unable to check rustc compatibility."
+                "rocket_cors was unable to check rustc compatibility."
             );
             println!(
                 "cargo:warning={}",

@@ -1403,9 +1403,9 @@ fn validate_and_build(options: &Cors, request: &Request) -> Result<Response, Err
     Ok(match result {
         ValidationResult::None => Response::new(),
         ValidationResult::Preflight { origin, headers } => {
-            preflight_response(options, origin, headers)
+            preflight_response(options, &origin, headers.as_ref())
         }
-        ValidationResult::Request { origin } => actual_request_response(options, origin),
+        ValidationResult::Request { origin } => actual_request_response(options, &origin),
     })
 }
 
@@ -1532,7 +1532,7 @@ fn preflight_validate(
 
     // 2. If the value of the Origin header is not a case-sensitive match for any of the values
     // in list of origins do not set any additional headers and terminate this set of steps.
-    validate_origin(&origin, &options.allowed_origins)?;
+    validate_origin(origin, &options.allowed_origins)?;
 
     // 3. Let `method` be the value as result of parsing the Access-Control-Request-Method
     // header.
@@ -1558,7 +1558,7 @@ fn preflight_validate(
     // values in list of headers do not set any additional headers and terminate this set of
     // steps.
 
-    if let &Some(ref headers) = headers {
+    if let Some(ref headers) = *headers {
         validate_allowed_headers(headers, &options.allowed_headers)?;
     }
 
@@ -1571,8 +1571,8 @@ fn preflight_validate(
 /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-preflight-requests).
 fn preflight_response(
     options: &Cors,
-    origin: Origin,
-    headers: Option<AccessControlRequestHeaders>,
+    origin: &Origin,
+    headers: Option<&AccessControlRequestHeaders>,
 ) -> Response {
     let response = Response::new();
 
@@ -1590,10 +1590,10 @@ fn preflight_response(
             if options.send_wildcard {
                 response.any()
             } else {
-                response.origin(&origin, true)
+                response.origin(origin, true)
             }
         }
-        AllOrSome::Some(_) => response.origin(&origin, false),
+        AllOrSome::Some(_) => response.origin(origin, false),
     };
     let response = response.credentials(options.allow_credentials);
 
@@ -1623,7 +1623,7 @@ fn preflight_response(
     // from Access-Control-Allow-Headers can be enough.
 
     // We do not do anything special with simple headers
-    let response = if let Some(ref headers) = headers {
+    if let Some(headers) = headers {
         let &AccessControlRequestHeaders(ref headers) = headers;
         response.headers(
             headers
@@ -1634,9 +1634,7 @@ fn preflight_response(
         )
     } else {
         response
-    };
-
-    response
+    }
 }
 
 /// Do checks for an actual request
@@ -1652,7 +1650,7 @@ fn actual_request_validate(options: &Cors, origin: &Origin) -> Result<(), Error>
     // in list of origins, do not set any additional headers and terminate this set of steps.
     // Always matching is acceptable since the list of origins can be unbounded.
 
-    validate_origin(&origin, &options.allowed_origins)?;
+    validate_origin(origin, &options.allowed_origins)?;
 
     Ok(())
 }
@@ -1661,7 +1659,7 @@ fn actual_request_validate(options: &Cors, origin: &Origin) -> Result<(), Error>
 ///
 /// This implementation references the
 /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-requests).
-fn actual_request_response(options: &Cors, origin: Origin) -> Response {
+fn actual_request_response(options: &Cors, origin: &Origin) -> Response {
     let response = Response::new();
 
     // 3. If the resource supports credentials add a single Access-Control-Allow-Origin header,
@@ -1679,10 +1677,10 @@ fn actual_request_response(options: &Cors, origin: Origin) -> Response {
             if options.send_wildcard {
                 response.any()
             } else {
-                response.origin(&origin, true)
+                response.origin(origin, true)
             }
         }
-        AllOrSome::Some(_) => response.origin(&origin, false),
+        AllOrSome::Some(_) => response.origin(origin, false),
     };
 
     let response = response.credentials(options.allow_credentials);
@@ -1694,16 +1692,14 @@ fn actual_request_response(options: &Cors, origin: Origin) -> Response {
     // of all entries where origin is a case-sensitive match for the value of the Origin header
     // and url is a case-sensitive match for the URL of the resource.
 
-    let response = response.exposed_headers(
+    response.exposed_headers(
         options
             .expose_headers
             .iter()
             .map(|s| &**s)
             .collect::<Vec<&str>>()
             .as_slice(),
-    );
-
-    response
+    )
 }
 
 /// Returns "catch all" OPTIONS routes that you can mount to catch all OPTIONS request. Only works

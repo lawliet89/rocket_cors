@@ -1,4 +1,4 @@
-//! This crate tests using rocket_cors using manual mode
+//! This crate tests using `rocket_cors` using manual mode
 
 #![feature(plugin, conservative_impl_trait)]
 #![plugin(rocket_codegen)]

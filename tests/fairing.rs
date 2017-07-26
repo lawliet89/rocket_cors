@@ -1,4 +1,4 @@
-//! This crate tests using rocket_cors using Fairings
+//! This crate tests using `rocket_cors` using Fairings
 
 #![feature(plugin)]
 #![plugin(rocket_codegen)]

@@ -1,4 +1,6 @@
 //! Fairing implementation
+use std::str::FromStr;
+
 use rocket::{self, Request, Outcome};
 use rocket::http::{self, Status, Header};
 
@@ -18,7 +20,10 @@ impl InjectedHeader {
             InjectedHeader::Failure => "Failure",
         }
     }
+}
 
+impl FromStr for InjectedHeader {
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Error> {
         match s {
             "Success" => Ok(InjectedHeader::Success),
@@ -59,7 +64,7 @@ fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Req
 }
 
 /// Inject a header into the Request with result
-fn inject_request_header(header: InjectedHeader, request: &mut Request) {
+fn inject_request_header(header: &InjectedHeader, request: &mut Request) {
     request.replace_header(Header::new(CORS_HEADER, header.to_str()));
 }
 
@@ -89,9 +94,9 @@ fn on_response_wrapper(
 
     let cors_response = if request.method() == http::Method::Options {
         let headers = request_headers(request)?;
-        preflight_response(options, origin, headers)
+        preflight_response(options, &origin, headers.as_ref())
     } else {
-        actual_request_response(options, origin)
+        actual_request_response(options, &origin)
     };
 
     cors_response.merge(response);
@@ -147,7 +152,7 @@ impl rocket::fairing::Fairing for Cors {
             }
         };
 
-        inject_request_header(injected_header, request);
+        inject_request_header(&injected_header, request);
     }
 
     fn on_response(&self, request: &Request, response: &mut rocket::Response) {
