@@ -14,15 +14,23 @@ categories = ["web-programming"]
 [badges]
 travis-ci = { repository = "lawliet89/rocket_cors" }
 
+[features]
+default = ["serialization"]
+
+# Serialization and deserialization support for settings
+serialization = ["serde", "serde_derive", "unicase_serde", "url_serde"]
+
 [dependencies]
 log = "0.3"
 rocket = "0.3"
-serde = "1.0"
-serde_derive = "1.0"
 unicase = "2.0"
-unicase_serde = "0.1.0"
 url = "1.5.1"
-url_serde = "0.2.0"
+
+# Optional dependencies that are activated by the various features
+serde = { version = "1.0", optional = true }
+serde_derive = { version = "1.0", optional = true }
+unicase_serde = { version = "0.1.0", optional = true }
+url_serde = { version = "0.2.0", optional = true }
 
 [build-dependencies]
 ansi_term = "0.9"
@@ -33,3 +41,10 @@ hyper = "0.10"
 rocket_codegen = "0.3"
 serde_json = "1.0"
 serde_test = "1.0"
+
+[[example]]
+name = "json"
+required-features = ["serialization"]
+
+[package.metadata.docs.rs]
+all-features = true

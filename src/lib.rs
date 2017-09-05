@@ -36,6 +36,16 @@
 //! rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
 //! ```
 //!
+//! ## Features
+//!
+//! By default, a `serialization` feature is enabled in this crate that allows you to (de)serialize
+//! the `Cors` struct that is described below. If you would like to disable this, simply change
+//! your `Cargo.toml` to:
+//!
+//! ```toml
+//! rocket_cors = { version = "0.2.0", default-features = false }
+//! ```
+//!
 //! ## Usage
 //!
 //! Before you can add CORS responses to your application, you need to create a `Cors` struct that
@@ -52,7 +62,8 @@
 //! The [`Cors` struct](struct.Cors.html) contains the settings for CORS requests to be validated
 //! and for responses to be generated. Defaults are defined for every field in the struct, and
 //! are documented on the [`Cors` struct](struct.Cors.html) page. You can also deserialize
-//! the struct from some format like JSON, YAML or TOML.
+//! the struct from some format like JSON, YAML or TOML when the default `serialization` feature
+//! is enabled.
 //!
 //! ### Three modes of operation
 //!
@@ -437,18 +448,25 @@
 extern crate log;
 #[macro_use]
 extern crate rocket;
+extern crate unicase;
+extern crate url;
+
+#[cfg(feature = "serialization")]
 extern crate serde;
+#[cfg(feature = "serialization")]
 #[macro_use]
 extern crate serde_derive;
-extern crate unicase;
+#[cfg(feature = "serialization")]
 extern crate unicase_serde;
-extern crate url;
+#[cfg(feature = "serialization")]
 extern crate url_serde;
 
 #[cfg(test)]
 extern crate hyper;
+#[cfg(feature = "serialization")]
 #[cfg(test)]
 extern crate serde_test;
+#[cfg(feature = "serialization")]
 #[cfg(test)]
 extern crate serde_json;
 
@@ -471,7 +489,6 @@ use rocket::{Outcome, State};
 use rocket::http::{self, Status};
 use rocket::request::{Request, FromRequest};
 use rocket::response;
-use serde::{Serialize, Deserialize};
 
 use headers::{HeaderFieldName, HeaderFieldNamesSet, Origin, AccessControlRequestHeaders,
               AccessControlRequestMethod, Url};
@@ -599,7 +616,8 @@ impl<'r> response::Responder<'r> for Error {
 ///
 /// This enum is serialized and deserialized
 /// ["Externally tagged"](https://serde.rs/enum-representations.html)
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.
     All,
@@ -672,42 +690,52 @@ impl fmt::Display for Method {
     }
 }
 
-impl Serialize for Method {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
+#[cfg(feature = "serialization")]
+mod method_serde {
+    use std::fmt;
+    use std::str::FromStr;
+
+    use serde::{self, Serialize, Deserialize};
+
+    use Method;
+
+    impl Serialize for Method {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            serializer.serialize_str(self.as_str())
+        }
     }
-}
 
-impl<'de> Deserialize<'de> for Method {
-    fn deserialize<D>(deserializer: D) -> Result<Method, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        use serde::de::{self, Visitor};
+    impl<'de> Deserialize<'de> for Method {
+        fn deserialize<D>(deserializer: D) -> Result<Method, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            use serde::de::{self, Visitor};
 
-        struct MethodVisitor;
-        impl<'de> Visitor<'de> for MethodVisitor {
-            type Value = Method;
+            struct MethodVisitor;
+            impl<'de> Visitor<'de> for MethodVisitor {
+                type Value = Method;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a string containing a HTTP Verb")
-            }
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("a string containing a HTTP Verb")
+                }
 
-            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                match Self::Value::from_str(s) {
-                    Ok(value) => Ok(value),
-                    Err(e) => Err(de::Error::custom(format!("{:?}", e))),
+                fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    match Self::Value::from_str(s) {
+                        Ok(value) => Ok(value),
+                        Err(e) => Err(de::Error::custom(format!("{:?}", e))),
+                    }
                 }
             }
-        }
 
-        deserializer.deserialize_string(MethodVisitor)
+            deserializer.deserialize_string(MethodVisitor)
+        }
     }
 }
 
@@ -796,7 +824,8 @@ impl AllowedHeaders {
 /// documentation at the [crate root](index.html) for usage information.
 ///
 /// You create a new copy of this struct by defining the configurations in the fields below.
-/// This struct can also be deserialized by serde.
+/// This struct can also be deserialized by serde with the `serialization` feature which is
+/// enabled by default.
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
 /// struct. The default for each field is described in the docuementation for the field.
@@ -864,7 +893,8 @@ impl AllowedHeaders {
 /// }
 ///
 /// ```
-#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct Cors {
     /// Origins that are allowed to make requests.
     /// Will be verified against the `Origin` request header.
@@ -882,7 +912,7 @@ pub struct Cors {
     /// Defaults to `All`.
     ///
     /// ```
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub allowed_origins: AllowedOrigins,
     /// The list of methods which the allowed origins are allowed to access for
     /// non-simple requests.
@@ -891,7 +921,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
-    #[serde(default = "Cors::default_allowed_methods")]
+    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_allowed_methods"))]
     pub allowed_methods: AllowedMethods,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
@@ -903,7 +933,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
@@ -914,7 +944,7 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub allow_credentials: bool,
     /// The list of headers which are safe to expose to the API of a CORS API specification.
     /// This corresponds to the `Access-Control-Expose-Headers` responde header.
@@ -923,13 +953,13 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// This defaults to an empty set.
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub expose_headers: HashSet<String>,
     /// The maximum time for which this CORS request maybe cached. This value is set as the
     /// `Access-Control-Max-Age` header.
     ///
     /// This defaults to `None` (unset).
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub max_age: Option<usize>,
     /// If true, and the `allowed_origins` parameter is `All`, a wildcard
     /// `Access-Control-Allow-Origin` response header is sent, rather than the request’s
@@ -943,14 +973,14 @@ pub struct Cors {
     /// in an `Error::CredentialsWithWildcardOrigin` error during Rocket launch or runtime.
     ///
     /// Defaults to `false`.
-    #[serde(default)]
+    #[cfg_attr(feature = "serialization", serde(default))]
     pub send_wildcard: bool,
     /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
     /// be mounted by the fairing. Specify the base the route so that it doesn't clash with any
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
-    #[serde(default = "Cors::default_fairing_route_base")]
+    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_base"))]
     pub fairing_route_base: String,
 }
 
@@ -1753,6 +1783,7 @@ mod tests {
 
     use rocket::local::Client;
     use rocket::http::Header;
+    #[cfg(feature = "serialization")]
     use serde_json;
 
     use super::*;
@@ -1808,6 +1839,7 @@ mod tests {
     }
 
     /// Check that the the default deserialization matches the one returned by `Default::default`
+    #[cfg(feature = "serialization")]
     #[test]
     fn cors_default_deserialization_is_correct() {
         let deserialized: Cors = serde_json::from_str("{}").expect("To not fail");
@@ -2039,11 +2071,13 @@ mod tests {
 
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
+    #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
     struct MethodTest {
         method: ::Method,
     }
 
+    #[cfg(feature = "serialization")]
     #[test]
     fn method_serde_roundtrip() {
         use serde_test::{Token, assert_tokens};

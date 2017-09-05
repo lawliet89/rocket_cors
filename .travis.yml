@@ -2,6 +2,9 @@ sudo: false
 language: rust
 rust:
 - nightly-2017-09-05
+env:
+  - CARGO_FLAGS="--all-features"
+  - CARGO_FLAGS="--no-default-features"
 addons:
   apt:
     packages:
@@ -14,11 +17,11 @@ before_script:
   export PATH=$HOME/.local/bin:$PATH
 script:
 - |
-  travis-cargo build -- --all-features --all &&
-  travis-cargo test -- --all-features --all &&
-  travis-cargo --only nightly-2017-09-05 doc -- --no-deps --all-features --all
+  travis-cargo build -- "${CARGO_FLAGS}" &&
+  travis-cargo test -- "${CARGO_FLAGS}" &&
+  travis-cargo --only nightly-2017-09-05 doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
-- travis-cargo --only nightly-2017-09-05 doc-upload
+- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly-2017-09-05 doc-upload
 env:
   global:
   - TRAVIS_CARGO_NIGHTLY_FEATURE=""
