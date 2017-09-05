@@ -1164,10 +1164,10 @@ impl Response {
             AllOrSome::Some(ref origin) => origin.origin().unicode_serialization(),
         };
 
-        response.set_raw_header("Access-Control-Allow-Origin", origin);
+        let _ = response.set_raw_header("Access-Control-Allow-Origin", origin);
 
         if self.allow_credentials {
-            response.set_raw_header("Access-Control-Allow-Credentials", "true");
+            let _ = response.set_raw_header("Access-Control-Allow-Credentials", "true");
         } else {
             response.remove_header("Access-Control-Allow-Credentials");
         }
@@ -1179,7 +1179,7 @@ impl Response {
                 .collect();
             let headers = headers.join(", ");
 
-            response.set_raw_header("Access-Control-Expose-Headers", headers);
+            let _ = response.set_raw_header("Access-Control-Expose-Headers", headers);
         } else {
             response.remove_header("Access-Control-Expose-Headers");
         }
@@ -1191,7 +1191,7 @@ impl Response {
                 .collect();
             let headers = headers.join(", ");
 
-            response.set_raw_header("Access-Control-Allow-Headers", headers);
+            let _ = response.set_raw_header("Access-Control-Allow-Headers", headers);
         } else {
             response.remove_header("Access-Control-Allow-Headers");
         }
@@ -1200,20 +1200,20 @@ impl Response {
             let methods: Vec<_> = self.allow_methods.iter().map(|m| m.as_str()).collect();
             let methods = methods.join(", ");
 
-            response.set_raw_header("Access-Control-Allow-Methods", methods);
+            let _ = response.set_raw_header("Access-Control-Allow-Methods", methods);
         } else {
             response.remove_header("Access-Control-Allow-Methods");
         }
 
         if self.max_age.is_some() {
             let max_age = self.max_age.unwrap();
-            response.set_raw_header("Access-Control-Max-Age", max_age.to_string());
+            let _ = response.set_raw_header("Access-Control-Max-Age", max_age.to_string());
         } else {
             response.remove_header("Access-Control-Max-Age");
         }
 
         if self.vary_origin {
-            response.set_raw_header("Vary", "Origin");
+            let _ = response.set_raw_header("Vary", "Origin");
         } else {
             response.remove_header("Vary");
         }
