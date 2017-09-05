@@ -187,7 +187,6 @@ fn cors_get_borrowed_check() {
     let req = client.get("/").header(origin_header).header(authorization);
 
     let mut response = req.dispatch();
-    println!("{:?}", response);
     assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
@@ -422,7 +421,6 @@ fn cors_get_owned_check() {
     );
 
     let mut response = req.dispatch();
-    println!("{:?}", response);
     assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS Owned".to_string()));

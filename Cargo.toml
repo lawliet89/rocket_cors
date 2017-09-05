@@ -43,8 +43,20 @@ serde_json = "1.0"
 serde_test = "1.0"
 
 [[example]]
+name = "fairing"
+
+[[example]]
+name = "guard"
+
+[[example]]
 name = "json"
 required-features = ["serialization"]
+
+[[example]]
+name = "manual"
+
+[[example]]
+name = "mix"
 
 [package.metadata.docs.rs]
 all-features = true
