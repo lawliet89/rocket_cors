@@ -444,7 +444,7 @@
 //!     }
 //! }
 //!
-//! /// A special struct that alows all origins
+//! /// A special struct that allows all origins
 //! ///
 //! /// Note: In your real application, you might want to use something like `lazy_static` to generate
 //! /// a `&'static` reference to this instead of creating a new struct on every request.
