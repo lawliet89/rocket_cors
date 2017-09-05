@@ -1,4 +1,6 @@
 //! This example is to demonstrate the JSON serialization and deserialization of the Cors settings
+//!
+//! Note: This requires the `serialization` feature which is enabled by default.
 extern crate rocket;
 extern crate rocket_cors as cors;
 extern crate serde_json;

@@ -9,14 +9,18 @@ use rocket::{self, Outcome};
 use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use unicase::UniCase;
-use unicase_serde;
 use url;
+
+#[cfg(feature = "serialization")]
+use unicase_serde;
+#[cfg(feature = "serialization")]
 use url_serde;
 
 /// A case insensitive header name
-#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug, Hash)]
+#[derive(Eq, PartialEq, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct HeaderFieldName(
-    #[serde(with = "unicase_serde::unicase")]
+    #[cfg_attr(feature = "serialization", serde(with = "unicase_serde::unicase"))]
     UniCase<String>
 );
 
@@ -58,9 +62,10 @@ impl FromStr for HeaderFieldName {
 pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 
 /// A wrapped `url::Url` to allow for deserialization
-#[derive(Eq, PartialEq, Clone, Hash, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
+#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct Url(
-    #[serde(with = "url_serde")]
+    #[cfg_attr(feature = "serialization", serde(with = "url_serde"))]
     url::Url
 );
 

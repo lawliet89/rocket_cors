@@ -2,6 +2,13 @@ sudo: false
 language: rust
 rust:
 - nightly-2017-09-05
+env:
+  global:
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+    - secure: dig1qv7Qc4IrAKoszmetgU1qyMnd5bPZC+jpgKaiimDX5mGiJJB3qHWql6+jeR5JDEcFGKE8/oFMkCtg78E6Gv6FcJ6qwB3Ks4MRfZlLmTPcwPj0pf6789M9FRnTsPMp3HHmeoVsfM4ujZYgk3Az+bDU4En6/8U4RCdl0CAmRGwMt9QtKzSygiHivCs/BpqkQ+Coq0HezaYDzBrNF3Q0gsxgy+5DALwSaQqAsKatb73w7i4EuyzrgfPW8OvkUj3i2Zc2zuY8FCElZY1H7igQK4P/EFyKyiRbyTzVsvwbqBwPPQuVzT8wwmOqcCmQACnuLD9EiF0iP2sAtWTJ0H2HosptVqxQbqmsvGHLzAza1jb1buLBgeIvPwDRP1sQmxVRgD1JkzRiZkt8EwN6MYzqtmfPA32Aukoji47n1zmyombJlAKkC8gKSXc6XTByOXcFNcYQ0BbyT9Tngn9K+YZUmSG/Wf33GKOCQc80I07FnOOsfYUpU43Vjv7xuFdyJn9vS9nxZzhZURQzrfJg4mgcqOTRGHIFGHdvrnVzDJX60gWQMoRadLjLoknGH86BUScmEJ0dWwhHS8dBeYboTNJuiW2EQtcnvDawQ8F79bhyNLVhM2ICoaf9Rok/lMjLUEN+6HzOGzw/rQYtJaJ6trF5CFwZIf3q2kHbW6wybwU/KTg=
+  matrix:
+    - CARGO_FLAGS="--all-features"
+    - CARGO_FLAGS="--no-default-features"
 addons:
   apt:
     packages:
@@ -14,12 +21,8 @@ before_script:
   export PATH=$HOME/.local/bin:$PATH
 script:
 - |
-  travis-cargo build -- --all-features --all &&
-  travis-cargo test -- --all-features --all &&
-  travis-cargo --only nightly-2017-09-05 doc -- --no-deps --all-features --all
+  travis-cargo build -- "${CARGO_FLAGS}" &&
+  travis-cargo test -- "${CARGO_FLAGS}" &&
+  travis-cargo --only nightly-2017-09-05 doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
-- travis-cargo --only nightly-2017-09-05 doc-upload
-env:
-  global:
-  - TRAVIS_CARGO_NIGHTLY_FEATURE=""
-  - secure: dig1qv7Qc4IrAKoszmetgU1qyMnd5bPZC+jpgKaiimDX5mGiJJB3qHWql6+jeR5JDEcFGKE8/oFMkCtg78E6Gv6FcJ6qwB3Ks4MRfZlLmTPcwPj0pf6789M9FRnTsPMp3HHmeoVsfM4ujZYgk3Az+bDU4En6/8U4RCdl0CAmRGwMt9QtKzSygiHivCs/BpqkQ+Coq0HezaYDzBrNF3Q0gsxgy+5DALwSaQqAsKatb73w7i4EuyzrgfPW8OvkUj3i2Zc2zuY8FCElZY1H7igQK4P/EFyKyiRbyTzVsvwbqBwPPQuVzT8wwmOqcCmQACnuLD9EiF0iP2sAtWTJ0H2HosptVqxQbqmsvGHLzAza1jb1buLBgeIvPwDRP1sQmxVRgD1JkzRiZkt8EwN6MYzqtmfPA32Aukoji47n1zmyombJlAKkC8gKSXc6XTByOXcFNcYQ0BbyT9Tngn9K+YZUmSG/Wf33GKOCQc80I07FnOOsfYUpU43Vjv7xuFdyJn9vS9nxZzhZURQzrfJg4mgcqOTRGHIFGHdvrnVzDJX60gWQMoRadLjLoknGH86BUScmEJ0dWwhHS8dBeYboTNJuiW2EQtcnvDawQ8F79bhyNLVhM2ICoaf9Rok/lMjLUEN+6HzOGzw/rQYtJaJ6trF5CFwZIf3q2kHbW6wybwU/KTg=
+- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly-2017-09-05 doc-upload
