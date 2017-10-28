@@ -107,7 +107,7 @@ fn on_response_wrapper(
     //
     // TODO: Is there anyway we can make this smarter? Only modify status codes for
     // requests where an actual route exist?
-    if request.method() == http::Method::Options && request.method() == http::Method::Options &&
+    if request.method() == http::Method::Options &&
         request.route().is_none()
     {
         info_!(
