@@ -1,7 +1,7 @@
 sudo: false
 language: rust
 rust:
-- nightly-2017-09-05
+- nightly-2017-09-26
 env:
   global:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""
@@ -23,6 +23,6 @@ script:
 - |
   travis-cargo build -- "${CARGO_FLAGS}" &&
   travis-cargo test -- "${CARGO_FLAGS}" &&
-  travis-cargo --only nightly-2017-09-05 doc -- --no-deps "${CARGO_FLAGS}"
+  travis-cargo --only nightly-2017-09-26 doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
-- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly-2017-09-05 doc-upload
+- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly-2017-09-26 doc-upload
