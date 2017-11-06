@@ -1171,9 +1171,8 @@ impl Cors {
 /// - `Vary`
 ///
 /// You can get this struct by using `Cors::validate_request` in an ad-hoc manner.
-#[doc(hidden)]
 #[derive(Eq, PartialEq, Debug)]
-pub struct Response {
+pub(crate) struct Response {
     allow_origin: Option<AllOrSome<Url>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
