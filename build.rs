@@ -11,8 +11,8 @@ use version_check::{is_nightly, is_min_version, is_min_date};
 // Specifies the minimum nightly version that is targetted
 // Note that sometimes the `rustc` date might be older than the nightly version,
 // usually one day older
-const MIN_DATE: &'static str = "2017-09-25";
-const MIN_VERSION: &'static str = "1.22.0-nightly";
+const MIN_DATE: &'static str = "2017-12-17";
+const MIN_VERSION: &'static str = "1.24.0-nightly";
 
 // Convenience macro for writing to stderr.
 macro_rules! printerr {

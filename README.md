@@ -21,7 +21,7 @@ Rocket requires nightly Rust. You should probably install Rust with
 See
 [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
 
-In particular, `rocket_cors` is currently targetted for `nightly-2017-09-26`. Newer nightlies
+In particular, `rocket_cors` is currently targetted for `nightly-2017-12-18`. Newer nightlies
 might work, but it's not guaranteed.
 
 ## Installation
