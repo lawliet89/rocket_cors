@@ -1,7 +1,9 @@
 sudo: false
 language: rust
 rust:
-- nightly-2017-12-18
+- nightly
+# Minimum Rust set by Rocket
+- nightly-2018-01-13
 env:
   global:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""
@@ -19,10 +21,12 @@ before_script:
 - |
   pip install 'travis-cargo<0.2' --user &&
   export PATH=$HOME/.local/bin:$PATH
+# Remove rust-toolchain override for tests
+- rm rust-toolchain
 script:
 - |
   travis-cargo build -- "${CARGO_FLAGS}" &&
   travis-cargo test -- "${CARGO_FLAGS}" &&
-  travis-cargo --only nightly-2017-12-18 doc -- --no-deps "${CARGO_FLAGS}"
+  travis-cargo --only nightly doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
-- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly-2017-12-18 doc-upload
+- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly doc-upload
