@@ -916,7 +916,8 @@ impl AllowedHeaders {
 ///   "expose_headers": [],
 ///   "max_age": null,
 ///   "send_wildcard": false,
-///   "fairing_route_base": "/cors"
+///   "fairing_route_base": "/cors",
+///   "fairing_route_rank": 0
 /// }
 /// ```
 /// ### Defined
@@ -1032,12 +1033,19 @@ pub struct Cors {
     #[cfg_attr(feature = "serialization", serde(default))]
     pub send_wildcard: bool,
     /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
-    /// be mounted by the fairing. Specify the base the route so that it doesn't clash with any
+    /// be mounted by the fairing. Specify the base of the route so that it doesn't clash with any
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
     #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_base"))]
     pub fairing_route_base: String,
+    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
+    /// be mounted by the fairing. Specify the rank of the route so that it doesn't clash with any
+    /// of your existing routes. Remember that a higher ranked route has lower priority.
+    ///
+    /// Defaults to 0
+    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_rank"))]
+    pub fairing_route_rank: isize,
 }
 
 impl Default for Cors {
@@ -1051,6 +1059,7 @@ impl Default for Cors {
             max_age: Default::default(),
             send_wildcard: Default::default(),
             fairing_route_base: Self::default_fairing_route_base(),
+            fairing_route_rank: Self::default_fairing_route_rank(),
         }
     }
 }
@@ -1074,6 +1083,10 @@ impl Cors {
 
     fn default_fairing_route_base() -> String {
         "/cors".to_string()
+    }
+
+    fn default_fairing_route_rank() -> isize {
+        0
     }
 
     /// Validates if any of the settings are disallowed or incorrect
