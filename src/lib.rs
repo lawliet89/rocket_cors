@@ -499,6 +499,10 @@
 //! }
 //!
 //! ```
+//!
+//! ## Reference
+//! - [CORS Specification](https://fetch.spec.whatwg.org/#cors-protocol)
+//! - [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
 
 #![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
          unknown_lints, unsafe_code)]
@@ -1170,6 +1174,8 @@ impl Cors {
 /// - `Access-Control-Allow-Credentials`
 /// - `Access-Control-Allow-Methods`
 /// - `Access-Control-Allow-Headers`
+///
+/// The following headers will be merged:
 /// - `Vary`
 ///
 /// You can get this struct by using `Cors::validate_request` in an ad-hoc manner.
@@ -1328,9 +1334,7 @@ impl Response {
         }
 
         if self.vary_origin {
-            let _ = response.set_raw_header("Vary", "Origin");
-        } else {
-            response.remove_header("Vary");
+            response.adjoin_raw_header("Vary", "Origin");
         }
     }
 
@@ -1411,6 +1415,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
 /// - `Access-Control-Allow-Credentials`
 /// - `Access-Control-Allow-Methods`
 /// - `Access-Control-Allow-Headers`
+///
+/// The following headers will be merged:
 /// - `Vary`
 ///
 /// See the documentation at the [crate root](index.html) for usage information.
