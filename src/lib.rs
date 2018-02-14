@@ -134,6 +134,24 @@
 //! }
 //!
 //! ```
+//! #### Injected Route
+//!
+//! The fairing implementation will inject a route during attachment to Rocket. This route is used
+//! to handle errors during CORS validation.
+//!
+//! This is due to the limitation in Rocket's Fairing
+//! [lifecycle](https://rocket.rs/guide/fairings/). Ideally, we want to validate the CORS request
+//! during `on_request`, and if the validation fails, we want to stop the route from even executing
+//! to
+//!
+//! 1) prevent side effects
+//! 1) prevent resource usage from unnecessary computation
+//!
+//! The only way to do this is to hijack the request and route it to our own injected route to
+//! handle errors. Rocket does not allow Fairings to stop the processing of a route.
+//!
+//! You can configure the behaviour of the injected route through a couple of fields in the
+//! [`Cors` struct](Cors).
 //!
 //! ### Request Guard
 //!
@@ -1032,15 +1050,15 @@ pub struct Cors {
     /// Defaults to `false`.
     #[cfg_attr(feature = "serialization", serde(default))]
     pub send_wildcard: bool,
-    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
-    /// be mounted by the fairing. Specify the base of the route so that it doesn't clash with any
+    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route
+    /// mounted by the fairing. Specify the base of the route so that it doesn't clash with any
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
     #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_base"))]
     pub fairing_route_base: String,
-    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route to
-    /// be mounted by the fairing. Specify the rank of the route so that it doesn't clash with any
+    /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route
+    /// mounted by the fairing. Specify the rank of the route so that it doesn't clash with any
     /// of your existing routes. Remember that a higher ranked route has lower priority.
     ///
     /// Defaults to 0
