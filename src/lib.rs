@@ -250,7 +250,7 @@
 //! In this case, you might as well use the `Guard` method above and place the `Cors` struct in
 //! Rocket's [state](https://rocket.rs/guide/state/).
 //! Alternatively, you can create a `Cors` struct directly in the route.
-//! - Your routes will need to have a `'r` lifetime and return `impl Responder<'r>`.
+//! - Your routes _might_ need to have a `'r` lifetime and return `impl Responder<'r>`. See below.
 //! - Using the `Cors` struct, use either the
 //! [`respond_owned`](struct.Cors.html#method.respond_owned) or
 //! [`respond_borrowed`](struct.Cors.html#method.respond_borrowed) function and pass in a handler
@@ -260,11 +260,20 @@
 //! - You will have to manually define your own `OPTIONS` routes.
 //!
 //! ### Notes about route lifetime
-//! It is unfortunate that you have to manually specify the `'r` lifetimes in your routes.
-//! Leaving out the lifetime will result in a
-//! [compiler panic](https://github.com/rust-lang/rust/issues/43380). Even if the panic is fixed,
-//! it is not known if we can exclude the lifetime because lifetimes are _elided_ in Rust,
-//! not inferred.
+//! You might have to specify a `'r` lifetime in your routes and then return `impl Responder<'r>`.
+//! If you are not sure what to do, you can try to leave the lifetime out and then add it in
+//! when the compiler complains.
+//!
+//! Generally, you will need to manually annotate the lifetime for the following cases where
+//! the compiler is unable to [elide](https://doc.rust-lang.org/beta/nomicon/lifetime-elision.html)
+//! the lifetime:
+//!
+//! - Your function arguments do not borrow anything.
+//! - Your function arguments borrow from more than one lifetime.
+//! - Your function arguments borrow from a lifetime that is shorter than the `'r` lifetime
+//! required.
+//!
+//! You can see examples when the lifetime annotation is required (or not) in `examples/manual.rs`.
 //!
 //! ### Owned example
 //! This is the most likely scenario when you want to have manual CORS validation. You can use this

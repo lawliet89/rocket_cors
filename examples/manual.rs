@@ -11,16 +11,20 @@ use rocket::response::Responder;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 
 /// Using a borrowed Cors
+/// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
+/// `'r` and so does `Responder`!
 #[get("/")]
-fn borrowed<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+fn borrowed(options: State<Cors>) -> impl Responder {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
 }
 
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
+/// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
+/// `'r` and so does `Responder`!
 #[get("/response")]
-fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+fn response(options: State<Cors>) -> impl Responder {
     let mut response = Response::new();
     response.set_sized_body(Cursor::new("Hello CORS!"));
 
@@ -30,6 +34,7 @@ fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
 }
 
 /// Create and use an ad-hoc Cors
+/// Note that the `'r` lifetime is needed because the compiler cannot elide anything.
 #[get("/owned")]
 fn owned<'r>() -> impl Responder<'r> {
     let options = cors_options();
@@ -39,6 +44,7 @@ fn owned<'r>() -> impl Responder<'r> {
 /// You need to define an OPTIONS route for preflight checks if you want to use `Cors` struct
 /// that is not in Rocket's managed state.
 /// These routes can just return the unit type `()`
+/// Note that the `'r` lifetime is needed because the compiler cannot elide anything.
 #[options("/owned")]
 fn owned_options<'r>() -> impl Responder<'r> {
     let options = cors_options();

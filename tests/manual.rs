@@ -17,14 +17,14 @@ use rocket_cors::*;
 
 /// Using a borrowed `Cors`
 #[get("/")]
-fn cors<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+fn cors(options: State<Cors>) -> impl Responder {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
 }
 
 #[get("/panic")]
-fn panicking_route<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+fn panicking_route(options: State<Cors>) -> impl Responder {
     options.inner().respond_borrowed(|_| -> () {
         panic!("This route will panic");
     })
@@ -51,7 +51,7 @@ fn owned<'r>() -> impl Responder<'r> {
 /// `Responder` with String
 #[allow(unmounted_route)]
 #[get("/")]
-fn responder_string<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+fn responder_string(options: State<Cors>) -> impl Responder {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS".to_string()))
