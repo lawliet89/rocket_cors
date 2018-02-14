@@ -27,7 +27,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! rocket_cors = "0.2.1"
+//! rocket_cors = "0.2.2"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -43,7 +43,7 @@
 //! your `Cargo.toml` to:
 //!
 //! ```toml
-//! rocket_cors = { version = "0.2.1", default-features = false }
+//! rocket_cors = { version = "0.2.2", default-features = false }
 //! ```
 //!
 //! ## Usage
@@ -473,56 +473,18 @@
 //!
 //! ```
 
-#![allow(
-    legacy_directory_ownership,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    unknown_lints,
-    unsafe_code,
-)]
-#![deny(
-    const_err,
-    dead_code,
-    deprecated,
-    exceeding_bitshifts,
-    improper_ctypes,
-    missing_docs,
-    mutable_transmutes,
-    no_mangle_const_items,
-    non_camel_case_types,
-    non_shorthand_field_patterns,
-    non_upper_case_globals,
-    overflowing_literals,
-    path_statements,
-    plugin_as_library,
-    private_no_mangle_fns,
-    private_no_mangle_statics,
-    stable_features,
-    trivial_casts,
-    trivial_numeric_casts,
-    unconditional_recursion,
-    unknown_crate_types,
-    unreachable_code,
-    unused_allocation,
-    unused_assignments,
-    unused_attributes,
-    unused_comparisons,
-    unused_extern_crates,
-    unused_features,
-    unused_imports,
-    unused_import_braces,
-    unused_qualifications,
-    unused_must_use,
-    unused_mut,
-    unused_parens,
-    unused_results,
-    unused_unsafe,
-    unused_variables,
-    variant_size_differences,
-    warnings,
-    while_true,
-)]
-
+#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
+         unknown_lints, unsafe_code)]
+#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs,
+        mutable_transmutes, no_mangle_const_items, non_camel_case_types,
+        non_shorthand_field_patterns, non_upper_case_globals, overflowing_literals,
+        path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
+        stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion,
+        unknown_crate_types, unreachable_code, unused_allocation, unused_assignments,
+        unused_attributes, unused_comparisons, unused_extern_crates, unused_features,
+        unused_imports, unused_import_braces, unused_qualifications, unused_must_use, unused_mut,
+        unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences,
+        warnings, while_true)]
 #![cfg_attr(test, feature(plugin))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
@@ -548,10 +510,10 @@ extern crate url_serde;
 extern crate hyper;
 #[cfg(feature = "serialization")]
 #[cfg(test)]
-extern crate serde_test;
+extern crate serde_json;
 #[cfg(feature = "serialization")]
 #[cfg(test)]
-extern crate serde_json;
+extern crate serde_test;
 
 #[cfg(test)]
 #[macro_use]
@@ -561,7 +523,7 @@ mod fairing;
 pub mod headers;
 
 use std::borrow::Cow;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
@@ -570,11 +532,11 @@ use std::str::FromStr;
 
 use rocket::{Outcome, State};
 use rocket::http::{self, Status};
-use rocket::request::{Request, FromRequest};
+use rocket::request::{FromRequest, Request};
 use rocket::response;
 
-use headers::{HeaderFieldName, HeaderFieldNamesSet, Origin, AccessControlRequestHeaders,
-              AccessControlRequestMethod, Url};
+use headers::{AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName,
+              HeaderFieldNamesSet, Origin, Url};
 
 /// Errors during operations
 ///
@@ -620,12 +582,14 @@ pub enum Error {
 impl Error {
     fn status(&self) -> Status {
         match *self {
-            Error::MissingOrigin | Error::OriginNotAllowed | Error::MethodNotAllowed |
-            Error::HeadersNotAllowed => Status::Forbidden,
-            Error::CredentialsWithWildcardOrigin |
-            Error::MissingCorsInRocketState |
-            Error::MissingInjectedHeader |
-            Error::UnknownInjectedHeader => Status::InternalServerError,
+            Error::MissingOrigin
+            | Error::OriginNotAllowed
+            | Error::MethodNotAllowed
+            | Error::HeadersNotAllowed => Status::Forbidden,
+            Error::CredentialsWithWildcardOrigin
+            | Error::MissingCorsInRocketState
+            | Error::MissingInjectedHeader
+            | Error::UnknownInjectedHeader => Status::InternalServerError,
             _ => Status::BadRequest,
         }
     }
@@ -645,7 +609,7 @@ impl error::Error for Error {
             }
             Error::MissingRequestHeaders => {
                 "The request header `Access-Control-Request-Headers` \
-                is required but is missing"
+                 is required but is missing"
             }
             Error::OriginNotAllowed => "Origin is not allowed to request",
             Error::MethodNotAllowed => "Method is not allowed",
@@ -778,7 +742,7 @@ mod method_serde {
     use std::fmt;
     use std::str::FromStr;
 
-    use serde::{self, Serialize, Deserialize};
+    use serde::{self, Deserialize, Serialize};
 
     use Method;
 
@@ -1158,7 +1122,6 @@ impl Cors {
     }
 }
 
-
 /// A CORS Response which provides the following CORS headers:
 ///
 /// - `Access-Control-Allow-Origin`
@@ -1339,7 +1302,6 @@ impl Response {
         validate_and_build(options, request)
     }
 }
-
 
 /// A [request guard](https://rocket.rs/guide/requests/#request-guards) to check CORS headers
 /// before a route is run. Will not execute the route if checks fail.
@@ -1559,12 +1521,10 @@ fn validate_origin(
     match *allowed_origins {
         // Always matching is acceptable since the list of origins can be unbounded.
         AllOrSome::All => Ok(()),
-        AllOrSome::Some(ref allowed_origins) => {
-            allowed_origins
-                .get(origin)
-                .and_then(|_| Some(()))
-                .ok_or_else(|| Error::OriginNotAllowed)
-        }
+        AllOrSome::Some(ref allowed_origins) => allowed_origins
+            .get(origin)
+            .and_then(|_| Some(()))
+            .ok_or_else(|| Error::OriginNotAllowed),
     }
 }
 
@@ -1637,7 +1597,6 @@ fn preflight_validate(
     method: &Option<AccessControlRequestMethod>,
     headers: &Option<AccessControlRequestHeaders>,
 ) -> Result<(), Error> {
-
     options.validate()?; // Fast-forward check for #7
 
     // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
@@ -1828,13 +1787,13 @@ pub fn catch_all_options_routes() -> Vec<rocket::Route> {
             isize::max_value(),
             http::Method::Options,
             "/",
-            catch_all_options_route_handler
+            catch_all_options_route_handler,
         ),
         rocket::Route::ranked(
             isize::max_value(),
             http::Method::Options,
             "/<catch_all_options_route..>",
-            catch_all_options_route_handler
+            catch_all_options_route_handler,
         ),
     ]
 }
@@ -1844,7 +1803,6 @@ fn catch_all_options_route_handler<'r>(
     request: &'r Request,
     _: rocket::Data,
 ) -> rocket::handler::Outcome<'r> {
-
     let guard: Guard = match request.guard() {
         Outcome::Success(guard) => guard,
         Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
@@ -2099,7 +2057,6 @@ mod tests {
                     .collect(),
             ),
         ).unwrap();
-
     }
 
     #[test]
@@ -2149,8 +2106,6 @@ mod tests {
                 .next()
                 .is_none()
         );
-
-
     }
 
     #[derive(Debug, PartialEq)]
@@ -2162,9 +2117,11 @@ mod tests {
     #[cfg(feature = "serialization")]
     #[test]
     fn method_serde_roundtrip() {
-        use serde_test::{Token, assert_tokens};
+        use serde_test::{assert_tokens, Token};
 
-        let test = MethodTest { method: From::from(http::Method::Get) };
+        let test = MethodTest {
+            method: From::from(http::Method::Get),
+        };
 
         assert_tokens(
             &test,
@@ -2185,15 +2142,14 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2219,15 +2175,14 @@ mod tests {
         let options = make_invalid_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2245,15 +2200,14 @@ mod tests {
         options.allowed_origins = AllOrSome::All;
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.example.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2277,15 +2231,14 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.example.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2303,17 +2256,17 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
-        let request = client.options("/").header(origin_header).header(
-            request_headers,
-        );
+        let request = client
+            .options("/")
+            .header(origin_header)
+            .header(request_headers);
 
         let _ = validate(&options, request.inner()).unwrap();
     }
@@ -2324,15 +2277,14 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Post,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2350,9 +2302,8 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
@@ -2376,9 +2327,8 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let result = validate(&options, request.inner()).expect("to not fail");
@@ -2395,9 +2345,8 @@ mod tests {
         let options = make_invalid_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let _ = validate(&options, request.inner()).unwrap();
@@ -2409,9 +2358,8 @@ mod tests {
         options.allowed_origins = AllOrSome::All;
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.example.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let result = validate(&options, request.inner()).expect("to not fail");
@@ -2428,9 +2376,8 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.example.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let _ = validate(&options, request.inner()).unwrap();
@@ -2452,15 +2399,14 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2491,15 +2437,14 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2530,15 +2475,14 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(
-            vec![FromStr::from_str("Authorization").unwrap()],
-        );
+        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap(),
+        ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2564,9 +2508,8 @@ mod tests {
         let options = make_cors_options();
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
@@ -2587,9 +2530,8 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&options, request.inner()).expect("to not fail");
@@ -2610,9 +2552,8 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header = Header::from(
-            hyper::header::Origin::from_str("https://www.acme.com").unwrap(),
-        );
+        let origin_header =
+            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&options, request.inner()).expect("to not fail");

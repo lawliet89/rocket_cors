@@ -34,9 +34,8 @@ fn request_headers_round_trip_smoke_test() {
     let rocket = rocket::ignite().mount("/", routes![request_headers]);
     let client = Client::new(rocket).expect("A valid Rocket client");
 
-    let origin_header = Header::from(
-        hyper::header::Origin::from_str("https://foo.bar.xyz").unwrap(),
-    );
+    let origin_header =
+        Header::from(hyper::header::Origin::from_str("https://foo.bar.xyz").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
@@ -53,9 +52,10 @@ fn request_headers_round_trip_smoke_test() {
     let mut response = req.dispatch();
 
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string()).expect(
-        "Non-empty body",
-    );
+    let body_str = response
+        .body()
+        .and_then(|body| body.into_string())
+        .expect("Non-empty body");
     let expected_body = r#"https://foo.bar.xyz/
 GET
 X-Ping, accept-language"#;

@@ -20,8 +20,7 @@ use url_serde;
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct HeaderFieldName(
-    #[cfg_attr(feature = "serialization", serde(with = "unicase_serde::unicase"))]
-    UniCase<String>
+    #[cfg_attr(feature = "serialization", serde(with = "unicase_serde::unicase"))] UniCase<String>,
 );
 
 impl Deref for HeaderFieldName {
@@ -64,10 +63,7 @@ pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 /// A wrapped `url::Url` to allow for deserialization
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-pub struct Url(
-    #[cfg_attr(feature = "serialization", serde(with = "url_serde"))]
-    url::Url
-);
+pub struct Url(#[cfg_attr(feature = "serialization", serde(with = "url_serde"))] url::Url);
 
 impl fmt::Display for Url {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -97,12 +93,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for Url {
 
     fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
         match request.headers().get_one("Origin") {
-            Some(origin) => {
-                match Self::from_str(origin) {
-                    Ok(origin) => Outcome::Success(origin),
-                    Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadOrigin(e))),
-                }
-            }
+            Some(origin) => match Self::from_str(origin) {
+                Ok(origin) => Outcome::Success(origin),
+                Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadOrigin(e))),
+            },
             None => Outcome::Forward(()),
         }
     }
@@ -134,12 +128,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
 
     fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
         match request.headers().get_one("Access-Control-Request-Method") {
-            Some(request_method) => {
-                match Self::from_str(request_method) {
-                    Ok(request_method) => Outcome::Success(request_method),
-                    Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadRequestMethod(e))),
-                }
-            }
+            Some(request_method) => match Self::from_str(request_method) {
+                Ok(request_method) => Outcome::Success(request_method),
+                Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadRequestMethod(e))),
+            },
             None => Outcome::Forward(()),
         }
     }
@@ -175,14 +167,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
 
     fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
         match request.headers().get_one("Access-Control-Request-Headers") {
-            Some(request_headers) => {
-                match Self::from_str(request_headers) {
-                    Ok(request_headers) => Outcome::Success(request_headers),
-                    Err(()) => {
-                        unreachable!("`AccessControlRequestHeaders::from_str` should never fail")
-                    }
+            Some(request_headers) => match Self::from_str(request_headers) {
+                Ok(request_headers) => Outcome::Success(request_headers),
+                Err(()) => {
+                    unreachable!("`AccessControlRequestHeaders::from_str` should never fail")
                 }
-            }
+            },
             None => Outcome::Forward(()),
         }
     }

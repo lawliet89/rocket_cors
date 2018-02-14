@@ -1,10 +1,10 @@
 //! Fairing implementation
 use std::str::FromStr;
 
-use rocket::{self, Request, Outcome};
-use rocket::http::{self, Status, Header};
+use rocket::{self, Outcome, Request};
+use rocket::http::{self, Header, Status};
 
-use {Cors, Error, validate, preflight_response, actual_request_response, origin, request_headers};
+use {actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error};
 
 /// An injected header to quickly give the result of CORS
 static CORS_HEADER: &str = "ROCKET-CORS";
@@ -82,9 +82,10 @@ fn on_response_wrapper(
     };
 
     // Get validation result from injected header
-    let injected_header = request.headers().get_one(CORS_HEADER).ok_or_else(|| {
-        Error::MissingInjectedHeader
-    })?;
+    let injected_header = request
+        .headers()
+        .get_one(CORS_HEADER)
+        .ok_or_else(|| Error::MissingInjectedHeader)?;
     let result = InjectedHeader::from_str(injected_header)?;
 
     if let InjectedHeader::Failure = result {
@@ -107,9 +108,7 @@ fn on_response_wrapper(
     //
     // TODO: Is there anyway we can make this smarter? Only modify status codes for
     // requests where an actual route exist?
-    if request.method() == http::Method::Options &&
-        request.route().is_none()
-    {
+    if request.method() == http::Method::Options && request.route().is_none() {
         info_!(
             "CORS Fairing: Turned missing route {} into an OPTIONS pre-flight request",
             request
@@ -124,16 +123,14 @@ impl rocket::fairing::Fairing for Cors {
     fn info(&self) -> rocket::fairing::Info {
         rocket::fairing::Info {
             name: "CORS",
-            kind: rocket::fairing::Kind::Attach | rocket::fairing::Kind::Request |
-                rocket::fairing::Kind::Response,
+            kind: rocket::fairing::Kind::Attach | rocket::fairing::Kind::Request
+                | rocket::fairing::Kind::Response,
         }
     }
 
     fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
         match self.validate() {
-            Ok(()) => {
-                Ok(rocket.mount(&self.fairing_route_base, vec![fairing_route()]))
-            }
+            Ok(()) => Ok(rocket.mount(&self.fairing_route_base, vec![fairing_route()])),
             Err(e) => {
                 error_!("Error attaching CORS fairing: {}", e);
                 Err(rocket)
@@ -170,7 +167,7 @@ mod tests {
     use rocket::http::{Method, Status};
     use rocket::local::Client;
 
-    use {Cors, AllOrSome, AllowedOrigins, AllowedHeaders};
+    use {AllOrSome, AllowedHeaders, AllowedOrigins, Cors};
 
     const CORS_ROOT: &'static str = "/my_cors";
 
@@ -214,9 +211,9 @@ mod tests {
         let rocket = rocket(make_cors_options());
 
         let expected_uri = format!("{}/<status>", CORS_ROOT);
-        let error_route = rocket.routes().find(|r| {
-            r.method == Method::Get && r.uri.as_str() == expected_uri
-        });
+        let error_route = rocket
+            .routes()
+            .find(|r| r.method == Method::Get && r.uri.as_str() == expected_uri);
         assert!(error_route.is_some());
     }
 

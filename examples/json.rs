@@ -6,7 +6,7 @@ extern crate rocket_cors as cors;
 extern crate serde_json;
 
 use rocket::http::Method;
-use cors::{Cors, AllowedOrigins, AllowedHeaders};
+use cors::{AllowedHeaders, AllowedOrigins, Cors};
 
 fn main() {
     // The default demonstrates the "All" serialization of several of the settings

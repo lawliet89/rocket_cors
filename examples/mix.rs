@@ -10,7 +10,7 @@ extern crate rocket_cors;
 
 use rocket::http::Method;
 use rocket::response::Responder;
-use rocket_cors::{Cors, Guard, AllowedOrigins, AllowedHeaders};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, Guard};
 
 /// The "usual" app route
 #[get("/")]

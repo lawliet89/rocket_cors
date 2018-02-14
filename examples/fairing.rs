@@ -4,7 +4,7 @@ extern crate rocket;
 extern crate rocket_cors;
 
 use rocket::http::Method;
-use rocket_cors::{AllowedOrigins, AllowedHeaders};
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 #[get("/")]
 fn cors<'a>() -> &'a str {

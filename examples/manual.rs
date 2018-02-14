@@ -5,17 +5,17 @@ extern crate rocket_cors;
 
 use std::io::Cursor;
 
-use rocket::{State, Response};
+use rocket::{Response, State};
 use rocket::http::Method;
 use rocket::response::Responder;
-use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 
 /// Using a borrowed Cors
 #[get("/")]
 fn borrowed<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
-    options.inner().respond_borrowed(
-        |guard| guard.responder("Hello CORS"),
-    )
+    options
+        .inner()
+        .respond_borrowed(|guard| guard.responder("Hello CORS"))
 }
 
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
@@ -24,9 +24,9 @@ fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
     let mut response = Response::new();
     response.set_sized_body(Cursor::new("Hello CORS!"));
 
-    options.inner().respond_borrowed(
-        move |guard| guard.response(response),
-    )
+    options
+        .inner()
+        .respond_borrowed(move |guard| guard.response(response))
 }
 
 /// Create and use an ad-hoc Cors
