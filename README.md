@@ -22,8 +22,7 @@ See
 [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
 
 In particular, `rocket_cors` is currently targetted for the latest `nightly`. Older nightlies might
-work, but they are subject to the minimum that
-[Rocket](https://github.com/SergioBenitez/Rocket/blob/master/codegen/build.rs) sets.
+work, but they are subject to the minimum that Rocket sets.
 
 ## Installation
 
