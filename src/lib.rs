@@ -19,8 +19,8 @@
 //! stable. See
 //! [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
 //!
-//! In particular, `rocket_cors` is currently targetted for `nightly-2017-07-21`. Newer nightlies
-//! might work, but it's not guaranteed.
+//! In particular, `rocket_cors` is currently targetted for the latest `nightly`. Older nightlies
+//! might work, but they are subject to the minimum that Rocket sets.
 //!
 //! ## Installation
 //!
@@ -59,9 +59,9 @@
 //!
 //! ### `Cors` Struct
 //!
-//! The [`Cors` struct](struct.Cors.html) contains the settings for CORS requests to be validated
+//! The [`Cors` struct](Cors) contains the settings for CORS requests to be validated
 //! and for responses to be generated. Defaults are defined for every field in the struct, and
-//! are documented on the [`Cors` struct](struct.Cors.html) page. You can also deserialize
+//! are documented on the [`Cors` struct](Cors) page. You can also deserialize
 //! the struct from some format like JSON, YAML or TOML when the default `serialization` feature
 //! is enabled.
 //!
@@ -97,7 +97,7 @@
 //! However, you can only have one set of settings that must apply to all routes. You cannot opt
 //! any route out of CORS checks.
 //!
-//! To use this, simply create a [`Cors` struct](struct.Cors.html) and then
+//! To use this, simply create a [`Cors` struct](Cors) and then
 //! [`attach`](https://api.rocket.rs/rocket/struct.Rocket.html#method.attach) it to Rocket.
 //!
 //! ```rust,no_run
@@ -144,18 +144,18 @@
 //!
 //! You will have to do the following:
 //!
-//! - Create a [`Cors` struct](struct.Cors.html) and during Rocket's ignite, add the struct to
+//! - Create a [`Cors` struct](Cors) and during Rocket's ignite, add the struct to
 //! Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
 //! - For all the routes that you want to enforce CORS on, you can mount either some
-//! [catch all route](fn.catch_all_options_routes.html) or define your own route for the OPTIONS
+//! [catch all route](catch_all_options_routes) or define your own route for the OPTIONS
 //! verb.
 //! - Then in all the routes you want to enforce CORS on, add a
 //! [Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
-//! [`Guard`](struct.Guard.html) struct in the route arguments. You should not wrap this in an
+//! [`Guard`](Guard) struct in the route arguments. You should not wrap this in an
 //! `Option` or `Result` because the guard will let non-CORS requests through and will take over
 //! error handling in case of errors.
 //! - In your routes, to add CORS headers to your responses, use the appropriate functions on the
-//! [`Guard`](struct.Guard.html) for a `Response` or a `Responder`.
+//! [`Guard`](Guard) for a `Response` or a `Responder`.
 //!
 //! ```rust,no_run
 //! #![feature(plugin)]
@@ -252,10 +252,10 @@
 //! Alternatively, you can create a `Cors` struct directly in the route.
 //! - Your routes _might_ need to have a `'r` lifetime and return `impl Responder<'r>`. See below.
 //! - Using the `Cors` struct, use either the
-//! [`respond_owned`](struct.Cors.html#method.respond_owned) or
-//! [`respond_borrowed`](struct.Cors.html#method.respond_borrowed) function and pass in a handler
+//! [`respond_owned`](Cors#method.respond_owned) or
+//! [`respond_borrowed`](Cors#method.respond_borrowed) function and pass in a handler
 //! that will be executed once CORS validation is successful.
-//! - Your handler will be passed a [`Guard`](struct.Guard.html) which you will have to use to
+//! - Your handler will be passed a [`Guard`](Guard) which you will have to use to
 //! add CORS headers into your own response.
 //! - You will have to manually define your own `OPTIONS` routes.
 //!
@@ -352,7 +352,7 @@
 //!
 //! /// Using a borrowed Cors
 //! #[get("/")]
-//! fn borrowed<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+//! fn borrowed(options: State<Cors>) -> impl Responder {
 //!     options.inner().respond_borrowed(
 //!         |guard| guard.responder("Hello CORS"),
 //!     )
@@ -360,7 +360,7 @@
 //!
 //! /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
 //! #[get("/response")]
-//! fn response<'r>(options: State<'r, Cors>) -> impl Responder<'r> {
+//! fn response(options: State<Cors>) -> impl Responder {
 //!     let mut response = Response::new();
 //!     response.set_sized_body(Cursor::new("Hello CORS!"));
 //!
@@ -455,8 +455,8 @@
 //!
 //! /// A special struct that allows all origins
 //! ///
-//! /// Note: In your real application, you might want to use something like `lazy_static` to generate
-//! /// a `&'static` reference to this instead of creating a new struct on every request.
+//! /// Note: In your real application, you might want to use something like `lazy_static` to
+//! /// generate a `&'static` reference to this instead of creating a new struct on every request.
 //! fn cors_options_all() -> Cors {
 //!     // You can also deserialize this
 //!     rocket_cors::Cors {
