@@ -30,6 +30,7 @@ fn main() {
         max_age: Some(42),
         send_wildcard: false,
         fairing_route_base: "/mycors".to_string(),
+        fairing_route_rank: 0,
     };
 
     println!("Default settings");

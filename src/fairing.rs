@@ -53,8 +53,8 @@ pub(crate) fn fairing_error_route<'r>(
 }
 
 /// Create a new `Route` for Fairing handling
-fn fairing_route() -> rocket::Route {
-    rocket::Route::new(http::Method::Get, "/<status>", fairing_error_route)
+fn fairing_route(rank: isize) -> rocket::Route {
+    rocket::Route::ranked(rank, http::Method::Get, "/<status>", fairing_error_route)
 }
 
 /// Modifies a `Request` to route to Fairing error handler
@@ -130,7 +130,10 @@ impl rocket::fairing::Fairing for Cors {
 
     fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
         match self.validate() {
-            Ok(()) => Ok(rocket.mount(&self.fairing_route_base, vec![fairing_route()])),
+            Ok(()) => Ok(rocket.mount(
+                &self.fairing_route_base,
+                vec![fairing_route(self.fairing_route_rank)],
+            )),
             Err(e) => {
                 error_!("Error attaching CORS fairing: {}", e);
                 Err(rocket)
