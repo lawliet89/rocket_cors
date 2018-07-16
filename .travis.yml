@@ -3,7 +3,7 @@ language: rust
 rust:
 - nightly
 # Minimum Rust set by Rocket
-- nightly-2018-01-13
+- nightly-2018-06-22
 cache: cargo
 env:
   global:

@@ -259,10 +259,6 @@
 //! that has any side effects or with an appreciable computation cost inside this handler.
 //!
 //! ### Steps to perform:
-//! - Your crate will need to enable the
-//! [`conservative_impl_trait`](https://github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md)
-//! feature. You can use `#![feature(conservative_impl_trait)]` at your crate root.
-//! Otherwise, the return type of your routes will be unspecifiable.
 //! - You will first need to have a `Cors` struct ready. This struct can be borrowed with a lifetime
 //! at least as long as `'r` which is the lifetime of a Rocket request. `'static` works too.
 //! In this case, you might as well use the `Guard` method above and place the `Cors` struct in
@@ -299,7 +295,7 @@
 //! (which you might have put in Rocket's state).
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -356,7 +352,7 @@
 //! special handling, you might want to use the Guard method instead which has less hassle.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -425,7 +421,7 @@
 //! You can run the example code below with `cargo run --example mix`.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;

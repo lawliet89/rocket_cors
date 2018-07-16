@@ -1,4 +1,4 @@
-#![feature(plugin, conservative_impl_trait)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 extern crate rocket;
 extern crate rocket_cors;

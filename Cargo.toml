@@ -21,7 +21,7 @@ serialization = ["serde", "serde_derive", "unicase_serde", "url_serde"]
 
 [dependencies]
 log = "0.3"
-rocket = "0.3.6"
+rocket = "0.3.14"
 unicase = "2.0"
 url = "1.5.1"
 
