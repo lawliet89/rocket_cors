@@ -259,10 +259,6 @@
 //! that has any side effects or with an appreciable computation cost inside this handler.
 //!
 //! ### Steps to perform:
-//! - Your crate will need to enable the
-//! [`conservative_impl_trait`](https://github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md)
-//! feature. You can use `#![feature(conservative_impl_trait)]` at your crate root.
-//! Otherwise, the return type of your routes will be unspecifiable.
 //! - You will first need to have a `Cors` struct ready. This struct can be borrowed with a lifetime
 //! at least as long as `'r` which is the lifetime of a Rocket request. `'static` works too.
 //! In this case, you might as well use the `Guard` method above and place the `Cors` struct in
@@ -299,7 +295,7 @@
 //! (which you might have put in Rocket's state).
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -356,7 +352,7 @@
 //! special handling, you might want to use the Guard method instead which has less hassle.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -425,7 +421,7 @@
 //! You can run the example code below with `cargo run --example mix`.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, conservative_impl_trait)]
+//! #![feature(plugin)]
 //! #![plugin(rocket_codegen)]
 //! extern crate rocket;
 //! extern crate rocket_cors;
@@ -505,8 +501,6 @@
 //! - [Supplanted W3C CORS Specification](https://www.w3.org/TR/cors/)
 //! - [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
 
-#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
-         unknown_lints, unsafe_code)]
 #![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs,
         mutable_transmutes, no_mangle_const_items, non_camel_case_types,
         non_shorthand_field_patterns, non_upper_case_globals, overflowing_literals,
@@ -517,6 +511,8 @@
         unused_imports, unused_import_braces, unused_qualifications, unused_must_use, unused_mut,
         unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences,
         warnings, while_true)]
+#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
+         unknown_lints, unsafe_code, intra_doc_link_resolution_failure)]
 #![cfg_attr(test, feature(plugin))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
@@ -990,8 +986,6 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
-    ///
-    /// ```
     #[cfg_attr(feature = "serialization", serde(default))]
     pub allowed_origins: AllowedOrigins,
     /// The list of methods which the allowed origins are allowed to access for
