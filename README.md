@@ -41,3 +41,10 @@ rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "mast
 ## Reference
 
 - [W3C CORS Recommendation](https://www.w3.org/TR/cors/#resource-processing-model)
+
+## License
+
+Rocket is licensed under either of the following, at your option:
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
