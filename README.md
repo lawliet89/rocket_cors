@@ -5,7 +5,7 @@
 [![Repository](https://img.shields.io/github/tag/lawliet89/rocket_cors.svg)](https://github.com/lawliet89/rocket_cors)
 [![Crates.io](https://img.shields.io/crates/v/rocket_cors.svg)](https://crates.io/crates/rocket_cors)
 
-- Documentation: [master branch](https://lawliet89.github.io/rocket_cors) | [stable](https://lawliet89.github.io/docs/rocket_cors/0.2.3/rocket_cors)
+- Documentation: [master branch](https://lawliet89.github.io/rocket_cors) | [stable](https://lawliet89.github.io/docs/rocket_cors/0.3.0/rocket_cors)
 
 Cross-origin resource sharing (CORS) for [Rocket](https://rocket.rs/) applications
 
@@ -29,7 +29,7 @@ work, but they are subject to the minimum that Rocket sets.
 Add the following to Cargo.toml:
 
 ```toml
-rocket_cors = "0.2.3"
+rocket_cors = "0.3.0"
 ```
 
 To use the latest `master` branch, for example:
