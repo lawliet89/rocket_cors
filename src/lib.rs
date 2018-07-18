@@ -501,8 +501,6 @@
 //! - [Supplanted W3C CORS Specification](https://www.w3.org/TR/cors/)
 //! - [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
 
-#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
-         unknown_lints, unsafe_code)]
 #![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs,
         mutable_transmutes, no_mangle_const_items, non_camel_case_types,
         non_shorthand_field_patterns, non_upper_case_globals, overflowing_literals,
@@ -513,6 +511,8 @@
         unused_imports, unused_import_braces, unused_qualifications, unused_must_use, unused_mut,
         unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences,
         warnings, while_true)]
+#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
+         unknown_lints, unsafe_code, intra_doc_link_resolution_failure)]
 #![cfg_attr(test, feature(plugin))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
