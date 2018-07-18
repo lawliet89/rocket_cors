@@ -5,9 +5,9 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use rocket::{self, Outcome};
 use rocket::http::Status;
 use rocket::request::{self, FromRequest};
+use rocket::{self, Outcome};
 use unicase::UniCase;
 use url;
 
@@ -20,7 +20,11 @@ use url_serde;
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 pub struct HeaderFieldName(
-    #[cfg_attr(feature = "serialization", serde(with = "unicase_serde::unicase"))] UniCase<String>,
+    #[cfg_attr(
+        feature = "serialization",
+        serde(with = "unicase_serde::unicase")
+    )]
+    UniCase<String>,
 );
 
 impl Deref for HeaderFieldName {

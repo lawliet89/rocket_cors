@@ -1,8 +1,8 @@
 //! Fairing implementation
 use std::str::FromStr;
 
-use rocket::{self, Outcome, Request};
 use rocket::http::{self, Header, Status};
+use rocket::{self, Outcome, Request};
 
 use {actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error};
 
@@ -123,7 +123,8 @@ impl rocket::fairing::Fairing for Cors {
     fn info(&self) -> rocket::fairing::Info {
         rocket::fairing::Info {
             name: "CORS",
-            kind: rocket::fairing::Kind::Attach | rocket::fairing::Kind::Request
+            kind: rocket::fairing::Kind::Attach
+                | rocket::fairing::Kind::Request
                 | rocket::fairing::Kind::Response,
         }
     }
@@ -166,9 +167,9 @@ impl rocket::fairing::Fairing for Cors {
 
 #[cfg(test)]
 mod tests {
-    use rocket::Rocket;
     use rocket::http::{Method, Status};
     use rocket::local::Client;
+    use rocket::Rocket;
 
     use {AllOrSome, AllowedHeaders, AllowedOrigins, Cors};
 

@@ -501,18 +501,56 @@
 //! - [Supplanted W3C CORS Specification](https://www.w3.org/TR/cors/)
 //! - [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
 
-#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs,
-        mutable_transmutes, no_mangle_const_items, non_camel_case_types,
-        non_shorthand_field_patterns, non_upper_case_globals, overflowing_literals,
-        path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
-        stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion,
-        unknown_crate_types, unreachable_code, unused_allocation, unused_assignments,
-        unused_attributes, unused_comparisons, unused_extern_crates, unused_features,
-        unused_imports, unused_import_braces, unused_qualifications, unused_must_use, unused_mut,
-        unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences,
-        warnings, while_true)]
-#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
-         unknown_lints, unsafe_code, intra_doc_link_resolution_failure)]
+#![deny(
+    const_err,
+    dead_code,
+    deprecated,
+    exceeding_bitshifts,
+    improper_ctypes,
+    missing_docs,
+    mutable_transmutes,
+    no_mangle_const_items,
+    non_camel_case_types,
+    non_shorthand_field_patterns,
+    non_upper_case_globals,
+    overflowing_literals,
+    path_statements,
+    plugin_as_library,
+    private_no_mangle_fns,
+    private_no_mangle_statics,
+    stable_features,
+    trivial_casts,
+    trivial_numeric_casts,
+    unconditional_recursion,
+    unknown_crate_types,
+    unreachable_code,
+    unused_allocation,
+    unused_assignments,
+    unused_attributes,
+    unused_comparisons,
+    unused_extern_crates,
+    unused_features,
+    unused_imports,
+    unused_import_braces,
+    unused_qualifications,
+    unused_must_use,
+    unused_mut,
+    unused_parens,
+    unused_results,
+    unused_unsafe,
+    unused_variables,
+    variant_size_differences,
+    warnings,
+    while_true
+)]
+#![allow(
+    legacy_directory_ownership,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    unknown_lints,
+    unsafe_code,
+    intra_doc_link_resolution_failure
+)]
 #![cfg_attr(test, feature(plugin))]
 #![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
@@ -558,13 +596,15 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use rocket::{Outcome, State};
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
+use rocket::{Outcome, State};
 
-use headers::{AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName,
-              HeaderFieldNamesSet, Origin, Url};
+use headers::{
+    AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
+    Origin, Url,
+};
 
 /// Errors during operations
 ///
@@ -722,7 +762,10 @@ impl<T> AllOrSome<T> {
 }
 
 impl AllOrSome<HashSet<Url>> {
-    #[deprecated(since = "0.1.3", note = "please use `AllowedOrigins::Some` instead")]
+    #[deprecated(
+        since = "0.1.3",
+        note = "please use `AllowedOrigins::Some` instead"
+    )]
     /// New `AllOrSome` from a list of URL strings.
     /// Returns a tuple where the first element is the struct `AllOrSome`,
     /// and the second element
@@ -833,7 +876,8 @@ impl AllowedOrigins {
     /// and the second element
     /// is a map of strings which failed to parse into URLs and their associated parse errors.
     pub fn some(urls: &[&str]) -> (Self, HashMap<String, url::ParseError>) {
-        let (ok_set, error_map): (Vec<_>, Vec<_>) = urls.iter()
+        let (ok_set, error_map): (Vec<_>, Vec<_>) = urls
+            .iter()
             .map(|s| (s.to_string(), Url::from_str(s)))
             .partition(|&(_, ref r)| r.is_ok());
 
@@ -995,7 +1039,10 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `[GET, HEAD, POST, OPTIONS, PUT, PATCH, DELETE]`
-    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_allowed_methods"))]
+    #[cfg_attr(
+        feature = "serialization",
+        serde(default = "Cors::default_allowed_methods")
+    )]
     pub allowed_methods: AllowedMethods,
     /// The list of header field names which can be used when this resource is accessed by allowed
     /// origins.
@@ -1054,14 +1101,20 @@ pub struct Cors {
     /// of your existing routes.
     ///
     /// Defaults to "/cors"
-    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_base"))]
+    #[cfg_attr(
+        feature = "serialization",
+        serde(default = "Cors::default_fairing_route_base")
+    )]
     pub fairing_route_base: String,
     /// When used as Fairing, Cors will need to redirect failed CORS checks to a custom route
     /// mounted by the fairing. Specify the rank of the route so that it doesn't clash with any
     /// of your existing routes. Remember that a higher ranked route has lower priority.
     ///
     /// Defaults to 0
-    #[cfg_attr(feature = "serialization", serde(default = "Cors::default_fairing_route_rank"))]
+    #[cfg_attr(
+        feature = "serialization",
+        serde(default = "Cors::default_fairing_route_rank")
+    )]
     pub fairing_route_rank: isize,
 }
 
@@ -1291,7 +1344,8 @@ impl Response {
         }
 
         if !self.expose_headers.is_empty() {
-            let headers: Vec<String> = self.expose_headers
+            let headers: Vec<String> = self
+                .expose_headers
                 .iter()
                 .map(|s| s.deref().to_string())
                 .collect();
@@ -1303,7 +1357,8 @@ impl Response {
         }
 
         if !self.allow_headers.is_empty() {
-            let headers: Vec<String> = self.allow_headers
+            let headers: Vec<String> = self
+                .allow_headers
                 .iter()
                 .map(|s| s.deref().to_string())
                 .collect();
@@ -1868,8 +1923,8 @@ fn catch_all_options_route_handler<'r>(
 mod tests {
     use std::str::FromStr;
 
-    use rocket::local::Client;
     use rocket::http::Header;
+    use rocket::local::Client;
     #[cfg(feature = "serialization")]
     use serde_json;
 
@@ -1976,7 +2031,10 @@ mod tests {
         // Build response and check built response header
         let expected_header = vec!["https://www.example.com"];
         let response = response.response(response::Response::new());
-        let actual_header: Vec<_> = response.headers().get("Access-Control-Allow-Origin").collect();
+        let actual_header: Vec<_> = response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .collect();
         assert_eq!(expected_header, actual_header);
 
         assert!(response.headers().get("Vary").next().is_none());
@@ -1985,15 +2043,16 @@ mod tests {
     #[test]
     fn response_sets_allow_origin_with_vary_correctly() {
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            true,
-        );
+        let response =
+            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), true);
 
         // Build response and check built response header
         let expected_header = vec!["https://www.example.com"];
         let response = response.response(response::Response::new());
-        let actual_header: Vec<_> = response.headers().get("Access-Control-Allow-Origin").collect();
+        let actual_header: Vec<_> = response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .collect();
         assert_eq!(expected_header, actual_header);
     }
 
@@ -2005,22 +2064,25 @@ mod tests {
         // Build response and check built response header
         let expected_header = vec!["*"];
         let response = response.response(response::Response::new());
-        let actual_header: Vec<_> = response.headers().get("Access-Control-Allow-Origin").collect();
+        let actual_header: Vec<_> = response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .collect();
         assert_eq!(expected_header, actual_header);
     }
 
     #[test]
     fn response_sets_allow_origin_with_ascii_serialization() {
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://аpple.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&FromStr::from_str("https://аpple.com").unwrap(), false);
 
         // Build response and check built response header
         let expected_header = vec!["https://xn--pple-43d.com"];
         let response = response.response(response::Response::new());
-        let actual_header: Vec<_> = response.headers().get("Access-Control-Allow-Origin").collect();
+        let actual_header: Vec<_> = response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .collect();
         assert_eq!(expected_header, actual_header);
     }
 
