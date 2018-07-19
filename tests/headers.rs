@@ -8,8 +8,8 @@ extern crate rocket_cors;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use rocket::local::Client;
 use rocket::http::Header;
+use rocket::local::Client;
 use rocket_cors::headers::*;
 
 #[get("/request_headers")]

@@ -8,10 +8,10 @@ extern crate rocket_cors as cors;
 
 use std::str::FromStr;
 
-use rocket::{Response, State};
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
+use rocket::{Response, State};
 
 #[get("/")]
 fn cors(cors: cors::Guard) -> cors::Responder<&str> {

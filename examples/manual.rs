@@ -5,9 +5,9 @@ extern crate rocket_cors;
 
 use std::io::Cursor;
 
-use rocket::{Response, State};
 use rocket::http::Method;
 use rocket::response::Responder;
+use rocket::{Response, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 
 /// Using a borrowed Cors

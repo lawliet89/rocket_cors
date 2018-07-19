@@ -5,8 +5,8 @@ extern crate rocket_cors;
 
 use std::io::Cursor;
 
-use rocket::Response;
 use rocket::http::Method;
+use rocket::Response;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Guard, Responder};
 
 /// Using a `Responder` -- the usual way you would use this

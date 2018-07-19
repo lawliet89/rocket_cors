@@ -1,9 +1,12 @@
 sudo: false
 language: rust
 rust:
-- nightly
-# Minimum Rust set by Rocket
-- nightly-2018-01-13
+  - nightly
+  # Minimum Rust set by Rocket
+  - nightly-2018-07-16
+branches:
+  only:
+  - master
 cache: cargo
 env:
   global:
@@ -19,15 +22,15 @@ addons:
     - libelf-dev
     - libdw-dev
 before_script:
-- |
-  pip install 'travis-cargo<0.2' --user &&
-  export PATH=$HOME/.local/bin:$PATH
-# Remove rust-toolchain override for tests
-- rm rust-toolchain
+  - |
+    pip install 'travis-cargo<0.2' --user &&
+    export PATH=$HOME/.local/bin:$PATH
+  # Remove rust-toolchain override for tests
+  - rm rust-toolchain
 script:
-- |
-  travis-cargo build -- "${CARGO_FLAGS}" &&
-  travis-cargo test -- "${CARGO_FLAGS}" &&
-  travis-cargo --only nightly doc -- --no-deps "${CARGO_FLAGS}"
+  - |
+    travis-cargo build -- "${CARGO_FLAGS}" &&
+    travis-cargo test -- "${CARGO_FLAGS}" &&
+    travis-cargo --only nightly doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
-- test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly doc-upload
+  - test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly doc-upload

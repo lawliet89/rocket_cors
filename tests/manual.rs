@@ -8,11 +8,11 @@ extern crate rocket_cors;
 
 use std::str::FromStr;
 
-use rocket::State;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
 use rocket::response::Responder;
+use rocket::State;
 use rocket_cors::*;
 
 /// Using a borrowed `Cors`
