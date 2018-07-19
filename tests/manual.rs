@@ -49,7 +49,6 @@ fn owned<'r>() -> impl Responder<'r> {
 // The following routes tests that the routes can be compiled with manual CORS
 
 /// `Responder` with String
-#[allow(unmounted_route)]
 #[get("/")]
 fn responder_string(options: State<Cors>) -> impl Responder {
     options
@@ -59,7 +58,6 @@ fn responder_string(options: State<Cors>) -> impl Responder {
 
 struct TestState;
 /// Borrow something else from Rocket with lifetime `'r`
-#[allow(unmounted_route)]
 #[get("/")]
 fn borrow<'r>(options: State<'r, Cors>, test_state: State<'r, TestState>) -> impl Responder<'r> {
     let borrow = test_state.inner();

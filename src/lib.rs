@@ -1030,6 +1030,7 @@ pub struct Cors {
     /// [Resource Processing Model](https://www.w3.org/TR/cors/#resource-processing-model).
     ///
     /// Defaults to `All`.
+    ///
     #[cfg_attr(feature = "serialization", serde(default))]
     pub allowed_origins: AllowedOrigins,
     /// The list of methods which the allowed origins are allowed to access for
