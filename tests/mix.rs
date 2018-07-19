@@ -3,7 +3,7 @@
 //! In this example, you typically have an application wide `Cors` struct except for one specific
 //! `ping` route that you want to allow all Origins to access.
 
-#![feature(plugin, conservative_impl_trait)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 extern crate hyper;
 extern crate rocket;
