@@ -1,6 +1,6 @@
 [package]
 name = "rocket_cors"
-version = "0.3.0"
+version = "0.4.0"
 license = "MIT/Apache-2.0"
 authors = ["Yong Wen Chua <me@yongwen.xyz>"]
 description = "Cross-origin resource sharing (CORS) for Rocket.rs applications"
@@ -20,8 +20,8 @@ default = ["serialization"]
 serialization = ["serde", "serde_derive", "unicase_serde", "url_serde"]
 
 [dependencies]
+rocket = { git = "https://github.com/SergioBenitez/Rocket", branch = "master" }
 log = "0.3"
-rocket = "0.3.16"
 unicase = "2.0"
 url = "1.5.1"
 
@@ -33,7 +33,6 @@ url_serde = { version = "0.2.0", optional = true }
 
 [dev-dependencies]
 hyper = "0.10"
-rocket_codegen = "0.3.16"
 serde_json = "1.0"
 serde_test = "1.0"
 
