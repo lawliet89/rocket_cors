@@ -1,7 +1,7 @@
 //! Fairing implementation
 use std::str::FromStr;
 
-use rocket::http::{self, Header, Status};
+use rocket::http::{self, Header, Status, uri::Origin};
 use rocket::{self, Outcome, Request};
 
 use {actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error};
@@ -44,7 +44,7 @@ pub(crate) fn fairing_error_route<'r>(
     request: &'r Request,
     _: rocket::Data,
 ) -> rocket::handler::Outcome<'r> {
-    let status = request.get_param::<u16>(0).unwrap_or_else(|e| {
+    let status = request.get_param::<u16>(0).unwrap_or(Ok(0)).unwrap_or_else(|e| {
         error_!("Fairing Error Handling Route error: {:?}", e);
         500
     });
@@ -59,8 +59,10 @@ fn fairing_route(rank: isize) -> rocket::Route {
 
 /// Modifies a `Request` to route to Fairing error handler
 fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Request) {
+    let origin = Origin::parse_owned(format!("{}/{}", options.fairing_route_base, status)).unwrap();
+
     request.set_method(http::Method::Get);
-    request.set_uri(format!("{}/{}", options.fairing_route_base, status));
+    request.set_uri(origin);
 }
 
 /// Inject a header into the Request with result
@@ -217,7 +219,7 @@ mod tests {
         let expected_uri = format!("{}/<status>", CORS_ROOT);
         let error_route = rocket
             .routes()
-            .find(|r| r.method == Method::Get && r.uri.as_str() == expected_uri);
+            .find(|r| r.method == Method::Get && r.uri.to_string() == expected_uri);
         assert!(error_route.is_some());
     }
 

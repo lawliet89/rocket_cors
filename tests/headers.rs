@@ -1,8 +1,7 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
 extern crate hyper;
-extern crate rocket;
+#[macro_use] extern crate rocket;
 extern crate rocket_cors;
 
 use std::ops::Deref;

@@ -2,11 +2,9 @@
 //!
 //! In this example, you typically have an application wide `Cors` struct except for one specific
 //! `ping` route that you want to allow all Origins to access.
-
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
+#![feature(proc_macro_hygiene, decl_macro)]
 extern crate hyper;
-extern crate rocket;
+#[macro_use] extern crate rocket;
 extern crate rocket_cors;
 
 use std::str::FromStr;
