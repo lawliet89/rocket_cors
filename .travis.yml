@@ -3,7 +3,7 @@ language: rust
 rust:
   - nightly
   # Minimum Rust set by Rocket
-  - nightly-2018-08-24
+  - nightly-2018-10-06
 branches:
   only:
   - master
