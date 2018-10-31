@@ -8,6 +8,8 @@ use std::str::FromStr;
 use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use rocket::{self, Outcome};
+#[cfg(feature = "serialization")]
+use serde_derive::{Deserialize, Serialize};
 use unicase::UniCase;
 use url;
 

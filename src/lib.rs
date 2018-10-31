@@ -102,9 +102,10 @@
 //!
 //! ```rust,no_run
 //! #![feature(proc_macro_hygiene, decl_macro)]
-//! #[macro_use] extern crate rocket;
+//! extern crate rocket;
 //! extern crate rocket_cors;
 //!
+//! use rocket::{get, routes};
 //! use rocket::http::Method;
 //! use rocket_cors::{AllowedOrigins, AllowedHeaders};
 //!
@@ -176,12 +177,12 @@
 //!
 //! ```rust,no_run
 //! #![feature(proc_macro_hygiene, decl_macro)]
-//! #[macro_use] extern crate rocket;
+//! extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use std::io::Cursor;
 //!
-//! use rocket::Response;
+//! use rocket::{Response, get, options, routes};
 //! use rocket::http::Method;
 //! use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
 //!
@@ -294,9 +295,10 @@
 //!
 //! ```rust,no_run
 //! #![feature(proc_macro_hygiene, decl_macro)]
-//! #[macro_use] extern crate rocket;
+//! extern crate rocket;
 //! extern crate rocket_cors;
 //!
+//! use rocket::{get, options, routes};
 //! use rocket::http::Method;
 //! use rocket::response::Responder;
 //! use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
@@ -350,12 +352,12 @@
 //!
 //! ```rust,no_run
 //! #![feature(proc_macro_hygiene, decl_macro)]
-//! #[macro_use] extern crate rocket;
+//! extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use std::io::Cursor;
 //!
-//! use rocket::{State, Response};
+//! use rocket::{State, Response, get, routes};
 //! use rocket::http::Method;
 //! use rocket::response::Responder;
 //! use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
@@ -418,9 +420,10 @@
 //!
 //! ```rust,no_run
 //! #![feature(proc_macro_hygiene, decl_macro)]
-//! #[macro_use] extern crate rocket;
+//! extern crate rocket;
 //! extern crate rocket_cors;
 //!
+//! use rocket::{get, options, routes};
 //! use rocket::http::Method;
 //! use rocket::response::Responder;
 //! use rocket_cors::{Cors, Guard, AllowedOrigins, AllowedHeaders};
@@ -545,9 +548,7 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-#[macro_use]
 extern crate log;
-#[macro_use]
 extern crate rocket;
 extern crate unicase;
 extern crate url;
@@ -555,7 +556,6 @@ extern crate url;
 #[cfg(feature = "serialization")]
 extern crate serde;
 #[cfg(feature = "serialization")]
-#[macro_use]
 extern crate serde_derive;
 #[cfg(feature = "serialization")]
 extern crate unicase_serde;
@@ -586,10 +586,13 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use log::{error, info, log};
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{Outcome, State};
+use rocket::{error_, info_, log_, Outcome, State};
+#[cfg(feature = "serialization")]
+use serde_derive::{Deserialize, Serialize};
 
 use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
