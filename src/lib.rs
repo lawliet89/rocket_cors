@@ -545,9 +545,7 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-#[macro_use]
 extern crate log;
-#[macro_use]
 extern crate rocket;
 extern crate unicase;
 extern crate url;
@@ -586,10 +584,11 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use log::{log, error, info};
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{Outcome, State};
+use rocket::{log_, error_, info_, Outcome, State};
 
 use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,

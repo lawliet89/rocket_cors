@@ -1,8 +1,9 @@
 //! Fairing implementation
 use std::str::FromStr;
 
+use log::{log, error, info};
 use rocket::http::{self, uri::Origin, Header, Status};
-use rocket::{self, Outcome, Request};
+use rocket::{self, log_, error_, info_, Outcome, Request};
 
 use crate::{
     actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error,
