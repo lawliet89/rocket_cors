@@ -1,7 +1,8 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
 #![feature(proc_macro_hygiene, decl_macro)]
 extern crate hyper;
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 extern crate rocket_cors as cors;
 
 use std::str::FromStr;
@@ -74,7 +75,10 @@ fn make_cors_options() -> cors::Cors {
 fn make_rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", routes![cors, panicking_route])
-        .mount("/", routes![response, responder_string, responder_unit, state])
+        .mount(
+            "/",
+            routes![response, responder_string, responder_unit, state],
+        )
         .mount("/", cors::catch_all_options_routes()) // mount the catch all routes
         .mount("/", routes![cors_manual, cors_manual_options]) // manual OPTIOONS routes
         .manage(make_cors_options())
@@ -92,9 +96,10 @@ fn smoke_test() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
@@ -134,9 +139,10 @@ fn cors_options_catch_all_check() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
@@ -165,9 +171,10 @@ fn cors_options_catch_all_check_other_routes() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/response/unit")
@@ -220,12 +227,10 @@ fn cors_get_no_origin() {
     assert!(response.status().class().is_success());
     let body_str = response.body().and_then(|body| body.into_string());
     assert_eq!(body_str, Some("Hello CORS".to_string()));
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 #[test]
@@ -238,9 +243,10 @@ fn cors_options_bad_origin() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
@@ -250,12 +256,10 @@ fn cors_options_bad_origin() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 #[test]
@@ -266,9 +270,10 @@ fn cors_options_missing_origin() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
@@ -277,12 +282,10 @@ fn cors_options_missing_origin() {
 
     let response = req.dispatch();
     assert!(response.status().class().is_success());
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 #[test]
@@ -295,9 +298,10 @@ fn cors_options_bad_request_method() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Post,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/")
@@ -307,12 +311,10 @@ fn cors_options_bad_request_method() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 #[test]
@@ -336,12 +338,10 @@ fn cors_options_bad_request_header() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 #[test]
@@ -356,12 +356,10 @@ fn cors_get_bad_origin() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 /// This test ensures that on a failing CORS request, the route (along with its side effects)
@@ -379,12 +377,10 @@ fn routes_failing_checks_are_not_executed() {
 
     let response = req.dispatch();
     assert_eq!(response.status(), Status::Forbidden);
-    assert!(
-        response
-            .headers()
-            .get_one("Access-Control-Allow-Origin")
-            .is_none()
-    );
+    assert!(response
+        .headers()
+        .get_one("Access-Control-Allow-Origin")
+        .is_none());
 }
 
 /// This test ensures that manually mounted CORS OPTIONS routes are used even in the presence of
@@ -399,9 +395,10 @@ fn overridden_options_routes_are_used() {
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
         hyper::method::Method::Get,
     ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("Authorization").unwrap(),
-    ]);
+    let request_headers =
+        hyper::header::AccessControlRequestHeaders(vec![
+            FromStr::from_str("Authorization").unwrap()
+        ]);
     let request_headers = Header::from(request_headers);
     let req = client
         .options("/manual")

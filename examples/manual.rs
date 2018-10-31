@@ -1,5 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 extern crate rocket_cors;
 
 use std::io::Cursor;
@@ -66,15 +67,7 @@ fn cors_options() -> Cors {
 
 fn main() {
     rocket::ignite()
-        .mount(
-            "/",
-            routes![
-                borrowed,
-                response,
-                owned,
-                owned_options,
-            ],
-        )
+        .mount("/", routes![borrowed, response, owned, owned_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options())
         .launch();

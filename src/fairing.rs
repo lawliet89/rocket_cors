@@ -1,7 +1,7 @@
 //! Fairing implementation
 use std::str::FromStr;
 
-use rocket::http::{self, Header, Status, uri::Origin};
+use rocket::http::{self, uri::Origin, Header, Status};
 use rocket::{self, Outcome, Request};
 
 use {actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error};
@@ -44,10 +44,13 @@ pub(crate) fn fairing_error_route<'r>(
     request: &'r Request,
     _: rocket::Data,
 ) -> rocket::handler::Outcome<'r> {
-    let status = request.get_param::<u16>(0).unwrap_or(Ok(0)).unwrap_or_else(|e| {
-        error_!("Fairing Error Handling Route error: {:?}", e);
-        500
-    });
+    let status = request
+        .get_param::<u16>(0)
+        .unwrap_or(Ok(0))
+        .unwrap_or_else(|e| {
+            error_!("Fairing Error Handling Route error: {:?}", e);
+            500
+        });
     let status = Status::from_code(status).unwrap_or_else(|| Status::InternalServerError);
     Outcome::Failure(status)
 }

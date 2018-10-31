@@ -751,10 +751,7 @@ impl<T> AllOrSome<T> {
 }
 
 impl AllOrSome<HashSet<Url>> {
-    #[deprecated(
-        since = "0.1.3",
-        note = "please use `AllowedOrigins::Some` instead"
-    )]
+    #[deprecated(since = "0.1.3", note = "please use `AllowedOrigins::Some` instead")]
     /// New `AllOrSome` from a list of URL strings.
     /// Returns a tuple where the first element is the struct `AllOrSome`,
     /// and the second element
@@ -1136,9 +1133,10 @@ impl Cors {
             Method::Put,
             Method::Patch,
             Method::Delete,
-        ].into_iter()
-            .map(From::from)
-            .collect()
+        ]
+        .into_iter()
+        .map(From::from)
+        .collect()
     }
 
     fn default_fairing_route_base() -> String {
@@ -2131,13 +2129,11 @@ mod tests {
 
         // Build response and check built response header
         let response = response.response(response::Response::new());
-        assert!(
-            response
-                .headers()
-                .get("Access-Control-Max-Age")
-                .next()
-                .is_none()
-        )
+        assert!(response
+            .headers()
+            .get("Access-Control-Max-Age")
+            .next()
+            .is_none())
     }
 
     #[test]
@@ -2168,7 +2164,8 @@ mod tests {
         validate_allowed_method(
             &FromStr::from_str(method).expect("not to fail"),
             &allowed_methods,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -2214,7 +2211,8 @@ mod tests {
                     .map(|s| FromStr::from_str(*s).unwrap())
                     .collect(),
             ),
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -2257,13 +2255,11 @@ mod tests {
         assert_eq!(expected_header, actual_header);
 
         // Check that `Access-Control-Max-Age` is removed
-        assert!(
-            response
-                .headers()
-                .get("Access-Control-Max-Age")
-                .next()
-                .is_none()
-        );
+        assert!(response
+            .headers()
+            .get("Access-Control-Max-Age")
+            .next()
+            .is_none());
     }
 
     #[derive(Debug, PartialEq)]
@@ -2305,9 +2301,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2338,9 +2335,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2363,9 +2361,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2394,9 +2393,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2416,9 +2416,10 @@ mod tests {
 
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2440,9 +2441,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Post,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2562,9 +2564,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2600,9 +2603,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client
@@ -2638,9 +2642,10 @@ mod tests {
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
             hyper::method::Method::Get,
         ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-        ]);
+        let request_headers =
+            hyper::header::AccessControlRequestHeaders(vec![
+                FromStr::from_str("Authorization").unwrap()
+            ]);
         let request_headers = Header::from(request_headers);
 
         let request = client

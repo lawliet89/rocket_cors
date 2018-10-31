@@ -1,5 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 extern crate rocket_cors;
 
 use std::io::Cursor;
@@ -48,10 +49,7 @@ fn main() {
     };
 
     rocket::ignite()
-        .mount(
-            "/",
-            routes![responder, response],
-        )
+        .mount("/", routes![responder, response])
         // Mount the routes to catch all the OPTIONS pre-flight requests
         .mount("/", rocket_cors::catch_all_options_routes())
         // You can also manually mount an OPTIONS route that will be used instead

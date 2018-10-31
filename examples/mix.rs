@@ -4,7 +4,8 @@
 //! `ping` route that you want to allow all Origins to access.
 
 #![feature(proc_macro_hygiene, decl_macro)]
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 extern crate rocket_cors;
 
 use rocket::http::Method;
@@ -59,14 +60,7 @@ fn cors_options_all() -> Cors {
 
 fn main() {
     rocket::ignite()
-        .mount(
-            "/",
-            routes![
-                app,
-                ping,
-                ping_options,
-            ],
-        )
+        .mount("/", routes![app, ping, ping_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options())
         .launch();
