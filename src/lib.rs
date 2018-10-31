@@ -553,7 +553,6 @@ extern crate url;
 #[cfg(feature = "serialization")]
 extern crate serde;
 #[cfg(feature = "serialization")]
-#[macro_use]
 extern crate serde_derive;
 #[cfg(feature = "serialization")]
 extern crate unicase_serde;
@@ -589,6 +588,7 @@ use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
 use rocket::{log_, error_, info_, Outcome, State};
+use serde_derive::{Serialize, Deserialize};
 
 use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
