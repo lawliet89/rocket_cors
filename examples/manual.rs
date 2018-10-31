@@ -1,5 +1,4 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-#[macro_use]
 extern crate rocket;
 extern crate rocket_cors;
 
@@ -7,7 +6,7 @@ use std::io::Cursor;
 
 use rocket::http::Method;
 use rocket::response::Responder;
-use rocket::{Response, State};
+use rocket::{get, options, routes, Response, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 
 /// Using a borrowed Cors

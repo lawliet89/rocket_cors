@@ -1,9 +1,9 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-#[macro_use]
 extern crate rocket;
 extern crate rocket_cors;
 
 use rocket::http::Method;
+use rocket::{get, routes};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 #[get("/")]
