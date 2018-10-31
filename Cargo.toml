@@ -6,7 +6,7 @@ authors = ["Yong Wen Chua <me@yongwen.xyz>"]
 description = "Cross-origin resource sharing (CORS) for Rocket.rs applications"
 homepage = "https://github.com/lawliet89/rocket_cors"
 repository = "https://github.com/lawliet89/rocket_cors"
-documentation = "https://lawliet89.github.io/rocket_cors/"
+documentation = "https://docs.rs/rocket_cors/"
 keywords = ["rocket", "cors"]
 categories = ["web-programming"]
 
