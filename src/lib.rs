@@ -101,9 +101,8 @@
 //! [`attach`](https://api.rocket.rs/rocket/struct.Rocket.html#method.attach) it to Rocket.
 //!
 //! ```rust,no_run
-//! #![feature(plugin, custom_derive)]
-//! #![plugin(rocket_codegen)]
-//! extern crate rocket;
+//! #![feature(proc_macro_hygiene, decl_macro)]
+//! #[macro_use] extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use rocket::http::Method;
@@ -176,9 +175,8 @@
 //! [`Guard`](Guard) for a `Response` or a `Responder`.
 //!
 //! ```rust,no_run
-//! #![feature(plugin)]
-//! #![plugin(rocket_codegen)]
-//! extern crate rocket;
+//! #![feature(proc_macro_hygiene, decl_macro)]
+//! #[macro_use] extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use std::io::Cursor;
@@ -295,9 +293,8 @@
 //! (which you might have put in Rocket's state).
 //!
 //! ```rust,no_run
-//! #![feature(plugin)]
-//! #![plugin(rocket_codegen)]
-//! extern crate rocket;
+//! #![feature(proc_macro_hygiene, decl_macro)]
+//! #[macro_use] extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use rocket::http::Method;
@@ -352,9 +349,8 @@
 //! special handling, you might want to use the Guard method instead which has less hassle.
 //!
 //! ```rust,no_run
-//! #![feature(plugin)]
-//! #![plugin(rocket_codegen)]
-//! extern crate rocket;
+//! #![feature(proc_macro_hygiene, decl_macro)]
+//! #[macro_use] extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use std::io::Cursor;
@@ -421,9 +417,8 @@
 //! You can run the example code below with `cargo run --example mix`.
 //!
 //! ```rust,no_run
-//! #![feature(plugin)]
-//! #![plugin(rocket_codegen)]
-//! extern crate rocket;
+//! #![feature(proc_macro_hygiene, decl_macro)]
+//! #[macro_use] extern crate rocket;
 //! extern crate rocket_cors;
 //!
 //! use rocket::http::Method;
@@ -516,8 +511,6 @@
     overflowing_literals,
     path_statements,
     plugin_as_library,
-    private_no_mangle_fns,
-    private_no_mangle_statics,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
@@ -538,7 +531,6 @@
     unused_parens,
     unused_results,
     unused_unsafe,
-    unused_variables,
     variant_size_differences,
     warnings,
     while_true
@@ -551,8 +543,6 @@
     unsafe_code,
     intra_doc_link_resolution_failure
 )]
-#![cfg_attr(test, feature(plugin))]
-#![cfg_attr(test, plugin(rocket_codegen))]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 #[macro_use]
@@ -622,7 +612,7 @@ pub enum Error {
     /// The request header `Access-Control-Request-Method` is required but is missing
     MissingRequestMethod,
     /// The request header `Access-Control-Request-Method` has an invalid value
-    BadRequestMethod(rocket::Error),
+    BadRequestMethod,
     /// The request header `Access-Control-Request-Headers`  is required but is missing.
     MissingRequestHeaders,
     /// Origin is not allowed to make this request
@@ -672,7 +662,7 @@ impl error::Error for Error {
                 "The request header `Access-Control-Request-Method` \
                  is required but is missing"
             }
-            Error::BadRequestMethod(_) => {
+            Error::BadRequestMethod => {
                 "The request header `Access-Control-Request-Method` has an invalid value"
             }
             Error::MissingRequestHeaders => {
@@ -712,7 +702,6 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::BadOrigin(ref e) => fmt::Display::fmt(e, f),
-            Error::BadRequestMethod(ref e) => fmt::Debug::fmt(e, f),
             _ => write!(f, "{}", error::Error::description(self)),
         }
     }
@@ -780,7 +769,7 @@ impl AllOrSome<HashSet<Url>> {
 pub struct Method(http::Method);
 
 impl FromStr for Method {
-    type Err = rocket::Error;
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let method = http::Method::from_str(s)?;

@@ -120,7 +120,7 @@ pub type Origin = Url;
 pub struct AccessControlRequestMethod(pub ::Method);
 
 impl FromStr for AccessControlRequestMethod {
-    type Err = rocket::Error;
+    type Err = ();
 
     fn from_str(method: &str) -> Result<Self, Self::Err> {
         Ok(AccessControlRequestMethod(::Method::from_str(method)?))
@@ -134,7 +134,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
         match request.headers().get_one("Access-Control-Request-Method") {
             Some(request_method) => match Self::from_str(request_method) {
                 Ok(request_method) => Outcome::Success(request_method),
-                Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadRequestMethod(e))),
+                Err(_) => Outcome::Failure((Status::BadRequest, ::Error::BadRequestMethod)),
             },
             None => Outcome::Forward(()),
         }
