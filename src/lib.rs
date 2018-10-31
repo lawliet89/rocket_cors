@@ -591,6 +591,7 @@ use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
 use rocket::{error_, info_, log_, Outcome, State};
+#[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 
 use crate::headers::{
