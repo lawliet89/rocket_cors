@@ -591,7 +591,7 @@ use rocket::request::{FromRequest, Request};
 use rocket::response;
 use rocket::{Outcome, State};
 
-use headers::{
+use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
     Origin, Url,
 };
@@ -801,7 +801,7 @@ mod method_serde {
 
     use serde::{self, Deserialize, Serialize};
 
-    use Method;
+    use crate::Method;
 
     impl Serialize for Method {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -1917,7 +1917,7 @@ mod tests {
     use serde_json;
 
     use super::*;
-    use http::Method;
+    use crate::http::Method;
 
     fn make_cors_options() -> Cors {
         let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
@@ -2265,7 +2265,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
     struct MethodTest {
-        method: ::Method,
+        method: crate::Method,
     }
 
     #[cfg(feature = "serialization")]

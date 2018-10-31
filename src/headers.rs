@@ -89,13 +89,13 @@ impl FromStr for Url {
 }
 
 impl<'a, 'r> FromRequest<'a, 'r> for Url {
-    type Error = ::Error;
+    type Error = crate::Error;
 
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
+    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Origin") {
             Some(origin) => match Self::from_str(origin) {
                 Ok(origin) => Outcome::Success(origin),
-                Err(e) => Outcome::Failure((Status::BadRequest, ::Error::BadOrigin(e))),
+                Err(e) => Outcome::Failure((Status::BadRequest, crate::Error::BadOrigin(e))),
             },
             None => Outcome::Forward(()),
         }
@@ -113,24 +113,24 @@ pub type Origin = Url;
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that the header is passed in correctly.
 #[derive(Debug)]
-pub struct AccessControlRequestMethod(pub ::Method);
+pub struct AccessControlRequestMethod(pub crate::Method);
 
 impl FromStr for AccessControlRequestMethod {
     type Err = ();
 
     fn from_str(method: &str) -> Result<Self, Self::Err> {
-        Ok(AccessControlRequestMethod(::Method::from_str(method)?))
+        Ok(AccessControlRequestMethod(crate::Method::from_str(method)?))
     }
 }
 
 impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
-    type Error = ::Error;
+    type Error = crate::Error;
 
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
+    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Access-Control-Request-Method") {
             Some(request_method) => match Self::from_str(request_method) {
                 Ok(request_method) => Outcome::Success(request_method),
-                Err(_) => Outcome::Failure((Status::BadRequest, ::Error::BadRequestMethod)),
+                Err(_) => Outcome::Failure((Status::BadRequest, crate::Error::BadRequestMethod)),
             },
             None => Outcome::Forward(()),
         }
@@ -163,9 +163,9 @@ impl FromStr for AccessControlRequestHeaders {
 }
 
 impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
-    type Error = ::Error;
+    type Error = crate::Error;
 
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, ::Error> {
+    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Access-Control-Request-Headers") {
             Some(request_headers) => match Self::from_str(request_headers) {
                 Ok(request_headers) => Outcome::Success(request_headers),
@@ -220,7 +220,8 @@ mod tests {
         let origin = hyper::header::Origin::new("https", "www.example.com", None);
         request.add_header(origin);
 
-        let outcome: request::Outcome<Origin, ::Error> = FromRequest::from_request(request.inner());
+        let outcome: request::Outcome<Origin, crate::Error> =
+            FromRequest::from_request(request.inner());
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         assert_eq!("https://www.example.com/", parsed_header.as_str());
     }
@@ -231,14 +232,14 @@ mod tests {
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
         assert_matches!(
             parsed_method,
-            AccessControlRequestMethod(::Method(rocket::http::Method::Post))
+            AccessControlRequestMethod(crate::Method(rocket::http::Method::Post))
         );
 
         let method = "options";
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
         assert_matches!(
             parsed_method,
-            AccessControlRequestMethod(::Method(rocket::http::Method::Options))
+            AccessControlRequestMethod(crate::Method(rocket::http::Method::Options))
         );
 
         let method = "INVALID";
@@ -251,7 +252,7 @@ mod tests {
         let mut request = client.get("/");
         let method = hyper::header::AccessControlRequestMethod(hyper::method::Method::Get);
         request.add_header(method);
-        let outcome: request::Outcome<AccessControlRequestMethod, ::Error> =
+        let outcome: request::Outcome<AccessControlRequestMethod, crate::Error> =
             FromRequest::from_request(request.inner());
 
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
@@ -278,7 +279,7 @@ mod tests {
             FromStr::from_str("date").unwrap(),
         ]);
         request.add_header(headers);
-        let outcome: request::Outcome<AccessControlRequestHeaders, ::Error> =
+        let outcome: request::Outcome<AccessControlRequestHeaders, crate::Error> =
             FromRequest::from_request(request.inner());
 
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);

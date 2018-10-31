@@ -6,7 +6,7 @@ extern crate rocket;
 extern crate rocket_cors as cors;
 extern crate serde_json;
 
-use cors::{AllowedHeaders, AllowedOrigins, Cors};
+use crate::cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket::http::Method;
 
 fn main() {

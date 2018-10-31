@@ -4,7 +4,9 @@ use std::str::FromStr;
 use rocket::http::{self, uri::Origin, Header, Status};
 use rocket::{self, Outcome, Request};
 
-use {actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error};
+use crate::{
+    actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error,
+};
 
 /// An injected header to quickly give the result of CORS
 static CORS_HEADER: &str = "ROCKET-CORS";
@@ -176,7 +178,7 @@ mod tests {
     use rocket::local::Client;
     use rocket::Rocket;
 
-    use {AllOrSome, AllowedHeaders, AllowedOrigins, Cors};
+    use crate::{AllOrSome, AllowedHeaders, AllowedOrigins, Cors};
 
     const CORS_ROOT: &'static str = "/my_cors";
 
