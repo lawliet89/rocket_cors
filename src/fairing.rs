@@ -1,45 +1,17 @@
 //! Fairing implementation
-use std::str::FromStr;
 
 use log::{error, info, log};
-use rocket::http::{self, uri::Origin, Header, Status};
+use rocket::http::{self, uri::Origin, Status};
 use rocket::{self, error_, info_, log_, Outcome, Request};
 
 use crate::{
     actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error,
 };
 
-/// An injected header to quickly give the result of CORS
-static CORS_HEADER: &str = "ROCKET-CORS";
-enum InjectedHeader {
+/// Request Local State to store CORS validation results
+enum CorsValidation {
     Success,
     Failure,
-}
-
-impl InjectedHeader {
-    fn to_str(&self) -> &'static str {
-        match *self {
-            InjectedHeader::Success => "Success",
-            InjectedHeader::Failure => "Failure",
-        }
-    }
-}
-
-impl FromStr for InjectedHeader {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Error> {
-        match s {
-            "Success" => Ok(InjectedHeader::Success),
-            "Failure" => Ok(InjectedHeader::Failure),
-            other => {
-                error_!(
-                    "Unknown injected header encountered: {}\nThis is probably a bug.",
-                    other
-                );
-                Err(Error::UnknownInjectedHeader)
-            }
-        }
-    }
 }
 
 /// Route for Fairing error handling
@@ -71,11 +43,6 @@ fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Req
     request.set_uri(origin);
 }
 
-/// Inject a header into the Request with result
-fn inject_request_header(header: &InjectedHeader, request: &mut Request) {
-    request.replace_header(Header::new(CORS_HEADER, header.to_str()));
-}
-
 fn on_response_wrapper(
     options: &Cors,
     request: &Request,
@@ -89,14 +56,9 @@ fn on_response_wrapper(
         Some(origin) => origin,
     };
 
-    // Get validation result from injected header
-    let injected_header = request
-        .headers()
-        .get_one(CORS_HEADER)
-        .ok_or_else(|| Error::MissingInjectedHeader)?;
-    let result = InjectedHeader::from_str(injected_header)?;
+    let result = request.local_cache(|| unreachable!("This should not be executed so late"));
 
-    if let InjectedHeader::Failure = result {
+    if let &CorsValidation::Failure = result {
         // Nothing else for us to do
         return Ok(());
     }
@@ -151,17 +113,17 @@ impl rocket::fairing::Fairing for Cors {
     }
 
     fn on_request(&self, request: &mut Request, _: &rocket::Data) {
-        let injected_header = match validate(self, request) {
-            Ok(_) => InjectedHeader::Success,
+        let result = match validate(self, request) {
+            Ok(_) => CorsValidation::Success,
             Err(err) => {
                 error_!("CORS Error: {}", err);
                 let status = err.status();
                 route_to_fairing_error_handler(self, status.code, request);
-                InjectedHeader::Failure
+                CorsValidation::Failure
             }
         };
 
-        inject_request_header(&injected_header, request);
+        let _ = request.local_cache(|| result);
     }
 
     fn on_response(&self, request: &Request, response: &mut rocket::Response) {
