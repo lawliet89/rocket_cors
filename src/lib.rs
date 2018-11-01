@@ -637,9 +637,6 @@ pub enum Error {
     /// The `on_response` handler of Fairing could not find the injected header from the Request.
     /// Either some other fairing has removed it, or this is a bug.
     MissingInjectedHeader,
-    /// The `on_response` handler of Fairing found an unknown injected header value from the
-    /// Request. Either some other fairing has modified it, or this is a bug.
-    UnknownInjectedHeader,
 }
 
 impl Error {
@@ -651,8 +648,7 @@ impl Error {
             | Error::HeadersNotAllowed => Status::Forbidden,
             Error::CredentialsWithWildcardOrigin
             | Error::MissingCorsInRocketState
-            | Error::MissingInjectedHeader
-            | Error::UnknownInjectedHeader => Status::InternalServerError,
+            | Error::MissingInjectedHeader => Status::InternalServerError,
             _ => Status::BadRequest,
         }
     }
@@ -687,10 +683,6 @@ impl error::Error for Error {
             Error::MissingInjectedHeader => {
                 "The `on_response` handler of Fairing could not find the injected header from the \
                  Request. Either some other fairing has removed it, or this is a bug."
-            }
-            Error::UnknownInjectedHeader => {
-                "The `on_response` handler of Fairing found an unknown injected header value from \
-                 the Request. Either some other fairing has modified it, or this is a bug."
             }
         }
     }
