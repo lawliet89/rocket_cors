@@ -4,7 +4,6 @@ use hyper;
 #[macro_use]
 extern crate rocket;
 
-
 use std::ops::Deref;
 use std::str::FromStr;
 

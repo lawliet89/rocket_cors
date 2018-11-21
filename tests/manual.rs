@@ -4,7 +4,6 @@ use hyper;
 #[macro_use]
 extern crate rocket;
 
-
 use std::str::FromStr;
 
 use rocket::http::Method;
