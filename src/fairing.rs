@@ -1,6 +1,6 @@
 //! Fairing implementation
 
-use log::{error, info, log};
+use ::log::{error, info, log};
 use rocket::http::{self, uri::Origin, Status};
 use rocket::{self, error_, info_, log_, Outcome, Request};
 
@@ -16,7 +16,7 @@ enum CorsValidation {
 
 /// Route for Fairing error handling
 pub(crate) fn fairing_error_route<'r>(
-    request: &'r Request,
+    request: &'r Request<'_>,
     _: rocket::Data,
 ) -> rocket::handler::Outcome<'r> {
     let status = request
@@ -36,7 +36,7 @@ fn fairing_route(rank: isize) -> rocket::Route {
 }
 
 /// Modifies a `Request` to route to Fairing error handler
-fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Request) {
+fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Request<'_>) {
     let origin = Origin::parse_owned(format!("{}/{}", options.fairing_route_base, status)).unwrap();
 
     request.set_method(http::Method::Get);
@@ -45,8 +45,8 @@ fn route_to_fairing_error_handler(options: &Cors, status: u16, request: &mut Req
 
 fn on_response_wrapper(
     options: &Cors,
-    request: &Request,
-    response: &mut rocket::Response,
+    request: &Request<'_>,
+    response: &mut rocket::Response<'_>,
 ) -> Result<(), Error> {
     let origin = match origin(request)? {
         None => {
@@ -112,7 +112,7 @@ impl rocket::fairing::Fairing for Cors {
         }
     }
 
-    fn on_request(&self, request: &mut Request, _: &rocket::Data) {
+    fn on_request(&self, request: &mut Request<'_>, _: &rocket::Data) {
         let result = match validate(self, request) {
             Ok(_) => CorsValidation::Success,
             Err(err) => {
@@ -126,7 +126,7 @@ impl rocket::fairing::Fairing for Cors {
         let _ = request.local_cache(|| result);
     }
 
-    fn on_response(&self, request: &Request, response: &mut rocket::Response) {
+    fn on_response(&self, request: &Request<'_>, response: &mut rocket::Response<'_>) {
         if let Err(err) = on_response_wrapper(self, request, response) {
             error_!("Fairings on_response error: {}\nMost likely a bug", err);
             response.set_status(Status::InternalServerError);

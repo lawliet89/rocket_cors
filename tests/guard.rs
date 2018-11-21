@@ -1,9 +1,9 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate hyper;
+use hyper;
 #[macro_use]
 extern crate rocket;
-extern crate rocket_cors as cors;
+use rocket_cors as cors;
 
 use std::str::FromStr;
 
@@ -13,42 +13,42 @@ use rocket::local::Client;
 use rocket::{Response, State};
 
 #[get("/")]
-fn cors(cors: cors::Guard) -> cors::Responder<&str> {
+fn cors(cors: cors::Guard<'_>) -> cors::Responder<'_, &str> {
     cors.responder("Hello CORS")
 }
 
 #[get("/panic")]
-fn panicking_route(_cors: cors::Guard) {
+fn panicking_route(_cors: cors::Guard<'_>) {
     panic!("This route will panic");
 }
 
 /// Manually specify our own OPTIONS route
 #[options("/manual")]
-fn cors_manual_options(cors: cors::Guard) -> cors::Responder<&str> {
+fn cors_manual_options(cors: cors::Guard<'_>) -> cors::Responder<'_, &str> {
     cors.responder("Manual CORS Preflight")
 }
 
 /// Manually specify our own OPTIONS route
 #[get("/manual")]
-fn cors_manual(cors: cors::Guard) -> cors::Responder<&str> {
+fn cors_manual(cors: cors::Guard<'_>) -> cors::Responder<'_, &str> {
     cors.responder("Hello CORS")
 }
 
 /// Using a `Response` instead of a `Responder`
 #[get("/response")]
-fn response(cors: cors::Guard) -> Response {
+fn response(cors: cors::Guard<'_>) -> Response<'_> {
     cors.response(Response::new())
 }
 
 /// `Responder` with String
 #[get("/responder/string")]
-fn responder_string(cors: cors::Guard) -> cors::Responder<String> {
+fn responder_string(cors: cors::Guard<'_>) -> cors::Responder<'_, String> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
 #[get("/responder/unit")]
-fn responder_unit(cors: cors::Guard) -> cors::Responder<()> {
+fn responder_unit(cors: cors::Guard<'_>) -> cors::Responder<'_, ()> {
     cors.responder(())
 }
 

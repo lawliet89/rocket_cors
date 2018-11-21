@@ -2,9 +2,9 @@
 //!
 //! Note: This requires the `serialization` feature which is enabled by default.
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate rocket;
-extern crate rocket_cors as cors;
-extern crate serde_json;
+
+use rocket_cors as cors;
+use serde_json;
 
 use crate::cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket::http::Method;

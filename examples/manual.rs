@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate rocket;
-extern crate rocket_cors;
+use rocket;
+use rocket_cors;
 
 use std::io::Cursor;
 
@@ -13,7 +13,7 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 /// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
 /// `'r` and so does `Responder`!
 #[get("/")]
-fn borrowed(options: State<Cors>) -> impl Responder {
+fn borrowed(options: State<'_, Cors>) -> impl Responder<'_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
@@ -23,7 +23,7 @@ fn borrowed(options: State<Cors>) -> impl Responder {
 /// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
 /// `'r` and so does `Responder`!
 #[get("/response")]
-fn response(options: State<Cors>) -> impl Responder {
+fn response(options: State<'_, Cors>) -> impl Responder<'_> {
     let mut response = Response::new();
     response.set_sized_body(Cursor::new("Hello CORS!"));
 
