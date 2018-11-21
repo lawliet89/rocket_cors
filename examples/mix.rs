@@ -4,8 +4,8 @@
 //! `ping` route that you want to allow all Origins to access.
 
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate rocket;
-extern crate rocket_cors;
+use rocket;
+use rocket_cors;
 
 use rocket::http::Method;
 use rocket::response::Responder;
@@ -14,7 +14,7 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, Guard};
 
 /// The "usual" app route
 #[get("/")]
-fn app(cors: Guard) -> rocket_cors::Responder<&str> {
+fn app(cors: Guard<'_>) -> rocket_cors::Responder<'_, &str> {
     cors.responder("Hello CORS!")
 }
 

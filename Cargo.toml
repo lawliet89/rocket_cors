@@ -9,6 +9,7 @@ repository = "https://github.com/lawliet89/rocket_cors"
 documentation = "https://docs.rs/rocket_cors/"
 keywords = ["rocket", "cors"]
 categories = ["web-programming"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "lawliet89/rocket_cors" }

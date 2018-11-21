@@ -1,9 +1,8 @@
 //! This crate tests using `rocket_cors` using manual mode
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate hyper;
+use hyper;
 #[macro_use]
 extern crate rocket;
-extern crate rocket_cors;
 
 use std::str::FromStr;
 
@@ -16,14 +15,14 @@ use rocket_cors::*;
 
 /// Using a borrowed `Cors`
 #[get("/")]
-fn cors(options: State<Cors>) -> impl Responder {
+fn cors(options: State<'_, Cors>) -> impl Responder<'_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
 }
 
 #[get("/panic")]
-fn panicking_route(options: State<Cors>) -> impl Responder {
+fn panicking_route(options: State<'_, Cors>) -> impl Responder<'_> {
     options.inner().respond_borrowed(|_| -> () {
         panic!("This route will panic");
     })
@@ -49,7 +48,7 @@ fn owned<'r>() -> impl Responder<'r> {
 
 /// `Responder` with String
 #[get("/")]
-fn responder_string(options: State<Cors>) -> impl Responder {
+fn responder_string(options: State<'_, Cors>) -> impl Responder<'_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS".to_string()))

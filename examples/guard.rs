@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate rocket;
-extern crate rocket_cors;
+use rocket;
+use rocket_cors;
 
 use std::io::Cursor;
 
@@ -11,13 +11,13 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Guard, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
-fn responder(cors: Guard) -> Responder<&str> {
+fn responder(cors: Guard<'_>) -> Responder<'_, &str> {
     cors.responder("Hello CORS!")
 }
 
 /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
 #[get("/response")]
-fn response(cors: Guard) -> Response {
+fn response(cors: Guard<'_>) -> Response<'_> {
     let mut response = Response::new();
     response.set_sized_body(Cursor::new("Hello CORS!"));
     cors.response(response)
@@ -25,13 +25,13 @@ fn response(cors: Guard) -> Response {
 
 /// Manually mount an OPTIONS route for your own handling
 #[options("/manual")]
-fn manual_options(cors: Guard) -> Responder<&str> {
+fn manual_options(cors: Guard<'_>) -> Responder<'_, &str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 
 /// Manually mount an OPTIONS route for your own handling
 #[get("/manual")]
-fn manual(cors: Guard) -> Responder<&str> {
+fn manual(cors: Guard<'_>) -> Responder<'_, &str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 

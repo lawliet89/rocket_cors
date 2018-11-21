@@ -34,7 +34,7 @@ impl Deref for HeaderFieldName {
 }
 
 impl fmt::Display for HeaderFieldName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -68,7 +68,7 @@ pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 pub struct Url(#[cfg_attr(feature = "serialization", serde(with = "url_serde"))] url::Url);
 
 impl fmt::Display for Url {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }

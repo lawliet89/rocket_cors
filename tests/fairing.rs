@@ -1,9 +1,8 @@
 //! This crate tests using `rocket_cors` using Fairings
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate hyper;
+use hyper;
 #[macro_use]
 extern crate rocket;
-extern crate rocket_cors;
 
 use std::str::FromStr;
 

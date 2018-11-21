@@ -550,29 +550,6 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-extern crate log;
-extern crate rocket;
-extern crate unicase;
-extern crate url;
-
-#[cfg(feature = "serialization")]
-extern crate serde;
-#[cfg(feature = "serialization")]
-extern crate serde_derive;
-#[cfg(feature = "serialization")]
-extern crate unicase_serde;
-#[cfg(feature = "serialization")]
-extern crate url_serde;
-
-#[cfg(test)]
-extern crate hyper;
-#[cfg(feature = "serialization")]
-#[cfg(test)]
-extern crate serde_json;
-#[cfg(feature = "serialization")]
-#[cfg(test)]
-extern crate serde_test;
-
 #[cfg(test)]
 #[macro_use]
 mod test_macros;
@@ -588,7 +565,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use log::{error, info, log};
+use ::log::{error, info, log};
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
@@ -687,7 +664,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::BadOrigin(ref e) => Some(e),
             _ => Some(self),
@@ -696,7 +673,7 @@ impl error::Error for Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::BadOrigin(ref e) => fmt::Display::fmt(e, f),
             _ => write!(f, "{}", error::Error::description(self)),
@@ -705,7 +682,7 @@ impl fmt::Display for Error {
 }
 
 impl<'r> response::Responder<'r> for Error {
-    fn respond_to(self, _: &Request) -> Result<response::Response<'r>, Status> {
+    fn respond_to(self, _: &Request<'_>) -> Result<response::Response<'r>, Status> {
         error_!("CORS Error: {}", self);
         Err(self.status())
     }
@@ -786,7 +763,7 @@ impl From<http::Method> for Method {
 }
 
 impl fmt::Display for Method {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
@@ -820,7 +797,7 @@ mod method_serde {
             impl<'de> Visitor<'de> for MethodVisitor {
                 type Value = Method;
 
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                     formatter.write_str("a string containing a HTTP Verb")
                 }
 
@@ -1303,7 +1280,7 @@ impl Response {
     /// Merge CORS headers with an existing `rocket::Response`.
     ///
     /// This will overwrite any existing CORS headers
-    fn merge(&self, response: &mut response::Response) {
+    fn merge(&self, response: &mut response::Response<'_>) {
         // TODO: We should be able to remove this
         let origin = match self.allow_origin {
             None => {
@@ -1426,7 +1403,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
     type Error = Error;
 
     fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
-        let options = match request.guard::<State<Cors>>() {
+        let options = match request.guard::<State<'_, Cors>>() {
             Outcome::Success(options) => options,
             _ => {
                 let error = Error::MissingCorsInRocketState;
@@ -1461,7 +1438,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
 pub struct Responder<'r, R> {
     responder: R,
     cors_response: Response,
-    marker: PhantomData<response::Responder<'r>>,
+    marker: PhantomData<dyn response::Responder<'r>>,
 }
 
 impl<'r, R: response::Responder<'r>> Responder<'r, R> {
@@ -1474,7 +1451,7 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
     }
 
     /// Respond to a request
-    fn respond(self, request: &Request) -> response::Result<'r> {
+    fn respond(self, request: &Request<'_>) -> response::Result<'r> {
         let mut response = self.responder.respond_to(request)?; // handle status errors?
         self.cors_response.merge(&mut response);
         Ok(response)
@@ -1482,7 +1459,7 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
 }
 
 impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R> {
-    fn respond_to(self, request: &Request) -> response::Result<'r> {
+    fn respond_to(self, request: &Request<'_>) -> response::Result<'r> {
         self.respond(request)
     }
 }
@@ -1514,7 +1491,7 @@ where
         }
     }
 
-    fn build_guard(&self, request: &Request) -> Result<Guard<'r>, Error> {
+    fn build_guard(&self, request: &Request<'_>) -> Result<Guard<'r>, Error> {
         let response = Response::validate_and_build(&self.options, request)?;
         Ok(Guard::new(response))
     }
@@ -1525,7 +1502,7 @@ where
     F: FnOnce(Guard<'r>) -> R + 'r,
     R: response::Responder<'r>,
 {
-    fn respond_to(self, request: &Request) -> response::Result<'r> {
+    fn respond_to(self, request: &Request<'_>) -> response::Result<'r> {
         let guard = match self.build_guard(request) {
             Ok(guard) => guard,
             Err(err) => {
@@ -1554,7 +1531,7 @@ enum ValidationResult {
 }
 
 /// Validates a request for CORS and returns a CORS Response
-fn validate_and_build(options: &Cors, request: &Request) -> Result<Response, Error> {
+fn validate_and_build(options: &Cors, request: &Request<'_>) -> Result<Response, Error> {
     let result = validate(options, request)?;
 
     Ok(match result {
@@ -1567,7 +1544,7 @@ fn validate_and_build(options: &Cors, request: &Request) -> Result<Response, Err
 }
 
 /// Validate a CORS request
-fn validate(options: &Cors, request: &Request) -> Result<ValidationResult, Error> {
+fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, Error> {
     // 1. If the Origin header is not present terminate this set of steps.
     // The request is outside the scope of this specification.
     let origin = origin(request)?;
@@ -1644,7 +1621,7 @@ fn validate_allowed_headers(
 }
 
 /// Gets the `Origin` request header from the request
-fn origin(request: &Request) -> Result<Option<Origin>, Error> {
+fn origin(request: &Request<'_>) -> Result<Option<Origin>, Error> {
     match Origin::from_request(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(origin) => Ok(Some(origin)),
@@ -1653,7 +1630,7 @@ fn origin(request: &Request) -> Result<Option<Origin>, Error> {
 }
 
 /// Gets the `Access-Control-Request-Method` request header from the request
-fn request_method(request: &Request) -> Result<Option<AccessControlRequestMethod>, Error> {
+fn request_method(request: &Request<'_>) -> Result<Option<AccessControlRequestMethod>, Error> {
     match AccessControlRequestMethod::from_request(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(method) => Ok(Some(method)),
@@ -1662,7 +1639,7 @@ fn request_method(request: &Request) -> Result<Option<AccessControlRequestMethod
 }
 
 /// Gets the `Access-Control-Request-Headers` request header from the request
-fn request_headers(request: &Request) -> Result<Option<AccessControlRequestHeaders>, Error> {
+fn request_headers(request: &Request<'_>) -> Result<Option<AccessControlRequestHeaders>, Error> {
     match AccessControlRequestHeaders::from_request(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(geaders) => Ok(Some(geaders)),
@@ -1887,10 +1864,10 @@ pub fn catch_all_options_routes() -> Vec<rocket::Route> {
 
 /// Handler for the "catch all options route"
 fn catch_all_options_route_handler<'r>(
-    request: &'r Request,
+    request: &'r Request<'_>,
     _: rocket::Data,
 ) -> rocket::handler::Outcome<'r> {
-    let guard: Guard = match request.guard() {
+    let guard: Guard<'_> = match request.guard() {
         Outcome::Success(guard) => guard,
         Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
         Outcome::Forward(()) => unreachable!("Should not be reachable"),

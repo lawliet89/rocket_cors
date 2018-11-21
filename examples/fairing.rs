@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-extern crate rocket;
-extern crate rocket_cors;
+use rocket;
+use rocket_cors;
 
 use rocket::http::Method;
 use rocket::{get, routes};
