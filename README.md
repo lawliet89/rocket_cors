@@ -31,7 +31,7 @@ work, but they are subject to the minimum that Rocket sets.
 Add the following to Cargo.toml:
 
 ```toml
-rocket_cors = "0.4.0-rc.2"
+rocket_cors = "0.4.0-rc.3"
 ```
 
 To use the latest `master` branch, for example:
