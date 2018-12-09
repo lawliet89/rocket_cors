@@ -631,52 +631,45 @@ impl Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::MissingOrigin => "The request header `Origin` is required but is missing",
-            Error::BadOrigin(_) => "The request header `Origin` contains an invalid URL",
-            Error::MissingRequestMethod => {
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::MissingOrigin => write!(f, "The request header `Origin` is required but is missing"),
+            Error::BadOrigin(_) => write!(f, "The request header `Origin` contains an invalid URL"),
+            Error::MissingRequestMethod => { write!(f,
                 "The request header `Access-Control-Request-Method` \
-                 is required but is missing"
+                 is required but is missing")
             }
-            Error::BadRequestMethod => {
-                "The request header `Access-Control-Request-Method` has an invalid value"
+            Error::BadRequestMethod => { write!(f,
+                "The request header `Access-Control-Request-Method` has an invalid value")
             }
-            Error::MissingRequestHeaders => {
+            Error::MissingRequestHeaders => { write!(f,
                 "The request header `Access-Control-Request-Headers` \
-                 is required but is missing"
+                 is required but is missing")
             }
-            Error::OriginNotAllowed => "Origin is not allowed to request",
-            Error::MethodNotAllowed => "Method is not allowed",
-            Error::HeadersNotAllowed => "Headers are not allowed",
-            Error::CredentialsWithWildcardOrigin => {
+            Error::OriginNotAllowed => write!(f, "Origin is not allowed to request"),
+            Error::MethodNotAllowed => write!(f, "Method is not allowed"),
+            Error::HeadersNotAllowed => write!(f, "Headers are not allowed"),
+            Error::CredentialsWithWildcardOrigin => { write!(f,
                 "Credentials are allowed, but the Origin is set to \"*\". \
-                 This is not allowed by W3C"
+                 This is not allowed by W3C")
             }
-            Error::MissingCorsInRocketState => {
-                "A CORS Request Guard was used, but no CORS Options was available in Rocket's state"
+            Error::MissingCorsInRocketState => { write!(f,
+                "A CORS Request Guard was used, but no CORS Options was available in Rocket's state")
             }
-            Error::MissingInjectedHeader => {
+            Error::MissingInjectedHeader => write!(f,
                 "The `on_response` handler of Fairing could not find the injected header from the \
-                 Request. Either some other fairing has removed it, or this is a bug."
-            }
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::BadOrigin(ref e) => Some(e),
-            _ => Some(self),
+                 Request. Either some other fairing has removed it, or this is a bug.")
         }
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+impl error::Error for Error {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::BadOrigin(ref e) => fmt::Display::fmt(e, f),
-            _ => write!(f, "{}", error::Error::description(self)),
+            Error::BadOrigin(ref e) => Some(e),
+            _ => Some(self),
         }
     }
 }
