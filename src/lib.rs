@@ -598,9 +598,9 @@ pub enum Error {
     /// The request header `Access-Control-Request-Headers`  is required but is missing.
     MissingRequestHeaders,
     /// Origin is not allowed to make this request
-    OriginNotAllowed,
+    OriginNotAllowed(String),
     /// Requested method is not allowed
-    MethodNotAllowed,
+    MethodNotAllowed(String),
     /// One or more headers requested are not allowed
     HeadersNotAllowed,
     /// Credentials are allowed, but the Origin is set to "*". This is not allowed by W3C
@@ -620,8 +620,8 @@ impl Error {
     fn status(&self) -> Status {
         match *self {
             Error::MissingOrigin
-            | Error::OriginNotAllowed
-            | Error::MethodNotAllowed
+            | Error::OriginNotAllowed(_)
+            | Error::MethodNotAllowed(_)
             | Error::HeadersNotAllowed => Status::Forbidden,
             Error::CredentialsWithWildcardOrigin
             | Error::MissingCorsInRocketState
@@ -647,8 +647,8 @@ impl fmt::Display for Error {
                 "The request header `Access-Control-Request-Headers` \
                  is required but is missing")
             }
-            Error::OriginNotAllowed => write!(f, "Origin is not allowed to request"),
-            Error::MethodNotAllowed => write!(f, "Method is not allowed"),
+            Error::OriginNotAllowed(origin) => write!(f, "Origin '{}' is not allowed to request", &origin),
+            Error::MethodNotAllowed(method) => write!(f, "Method '{}' is not allowed", &method),
             Error::HeadersNotAllowed => write!(f, "Headers are not allowed"),
             Error::CredentialsWithWildcardOrigin => { write!(f,
                 "Credentials are allowed, but the Origin is set to \"*\". \
@@ -1577,7 +1577,7 @@ fn validate_origin(
         AllOrSome::Some(ref allowed_origins) => allowed_origins
             .get(origin)
             .and_then(|_| Some(()))
-            .ok_or_else(|| Error::OriginNotAllowed),
+            .ok_or_else(|| Error::OriginNotAllowed(origin.to_string())),
     }
 }
 
@@ -1588,7 +1588,7 @@ fn validate_allowed_method(
 ) -> Result<(), Error> {
     let &AccessControlRequestMethod(ref request_method) = method;
     if !allowed_methods.iter().any(|m| m == request_method) {
-        Err(Error::MethodNotAllowed)?
+        Err(Error::MethodNotAllowed(method.0.to_string()))?
     }
 
     // TODO: Subset to route? Or just the method requested for?
