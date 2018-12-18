@@ -7,9 +7,13 @@ use std::io::Cursor;
 use rocket::http::Method;
 use rocket::response::Responder;
 use rocket::{get, options, routes, Response, State};
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
 
 /// Using a borrowed Cors
+///
+/// You might want to borrow the `Cors` struct from Rocket's state, for example. Unless you have
+/// special handling, you might want to use the Guard method instead which has less hassle.
+///
 /// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
 /// `'r` and so does `Responder`!
 #[get("/")]
@@ -34,9 +38,13 @@ fn response(options: State<'_, Cors>) -> impl Responder<'_> {
 
 /// Create and use an ad-hoc Cors
 /// Note that the `'r` lifetime is needed because the compiler cannot elide anything.
+///
+/// This is the most likely scenario when you want to have manual CORS validation. You can use this
+/// when the settings you want to use for a route is not the same as the rest of the application
+/// (which you might have put in Rocket's state).
 #[get("/owned")]
 fn owned<'r>() -> impl Responder<'r> {
-    let options = cors_options();
+    let options = cors_options().to_cors()?;
     options.respond_owned(|guard| guard.responder("Hello CORS"))
 }
 
@@ -46,16 +54,16 @@ fn owned<'r>() -> impl Responder<'r> {
 /// Note that the `'r` lifetime is needed because the compiler cannot elide anything.
 #[options("/owned")]
 fn owned_options<'r>() -> impl Responder<'r> {
-    let options = cors_options();
+    let options = cors_options().to_cors()?;
     options.respond_owned(|guard| guard.responder(()))
 }
 
-fn cors_options() -> Cors {
+fn cors_options() -> CorsOptions {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     // You can also deserialize this
-    rocket_cors::Cors {
+    rocket_cors::CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
@@ -68,6 +76,6 @@ fn main() {
     rocket::ignite()
         .mount("/", routes![borrowed, response, owned, owned_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
-        .manage(cors_options())
+        .manage(cors_options().to_cors().expect("To not fail"))
         .launch();
 }

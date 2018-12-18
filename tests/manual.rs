@@ -31,7 +31,7 @@ fn panicking_route(options: State<'_, Cors>) -> impl Responder<'_> {
 /// Respond with an owned option instead
 #[options("/owned")]
 fn owned_options<'r>() -> impl Responder<'r> {
-    let borrow = make_different_cors_options();
+    let borrow = make_different_cors_options().to_cors()?;
 
     borrow.respond_owned(|guard| guard.responder("Manual CORS Preflight"))
 }
@@ -39,7 +39,7 @@ fn owned_options<'r>() -> impl Responder<'r> {
 /// Respond with an owned option instead
 #[get("/owned")]
 fn owned<'r>() -> impl Responder<'r> {
-    let borrow = make_different_cors_options();
+    let borrow = make_different_cors_options().to_cors()?;
 
     borrow.respond_owned(|guard| guard.responder("Hello CORS Owned"))
 }
@@ -65,11 +65,11 @@ fn borrow<'r>(options: State<'r, Cors>, test_state: State<'r, TestState>) -> imp
     })
 }
 
-fn make_cors_options() -> Cors {
+fn make_cors_options() -> CorsOptions {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    Cors {
+    CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
@@ -78,11 +78,11 @@ fn make_cors_options() -> Cors {
     }
 }
 
-fn make_different_cors_options() -> Cors {
+fn make_different_cors_options() -> CorsOptions {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
     assert!(failed_origins.is_empty());
 
-    Cors {
+    CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
@@ -96,7 +96,7 @@ fn rocket() -> rocket::Rocket {
         .mount("/", routes![cors, panicking_route])
         .mount("/", routes![owned, owned_options])
         .mount("/", catch_all_options_routes()) // mount the catch all routes
-        .manage(make_cors_options())
+        .manage(make_cors_options().to_cors().expect("Not to fail"))
 }
 
 #[test]

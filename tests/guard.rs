@@ -59,17 +59,19 @@ fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Respo
     cors.responder("hmm")
 }
 
-fn make_cors_options() -> cors::Cors {
+fn make_cors() -> cors::Cors {
     let (allowed_origins, failed_origins) = cors::AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    cors::Cors {
+    cors::CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: cors::AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     }
+    .to_cors()
+    .expect("To not fail")
 }
 
 fn make_rocket() -> rocket::Rocket {
@@ -81,7 +83,7 @@ fn make_rocket() -> rocket::Rocket {
         )
         .mount("/", cors::catch_all_options_routes()) // mount the catch all routes
         .mount("/", routes![cors_manual, cors_manual_options]) // manual OPTIOONS routes
-        .manage(make_cors_options())
+        .manage(make_cors())
         .manage(SomeState)
 }
 

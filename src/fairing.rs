@@ -100,16 +100,10 @@ impl rocket::fairing::Fairing for Cors {
     }
 
     fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
-        match self.validate() {
-            Ok(()) => Ok(rocket.mount(
-                &self.fairing_route_base,
-                vec![fairing_route(self.fairing_route_rank)],
-            )),
-            Err(e) => {
-                error_!("Error attaching CORS fairing: {}", e);
-                Err(rocket)
-            }
-        }
+        Ok(rocket.mount(
+            &self.fairing_route_base,
+            vec![fairing_route(self.fairing_route_rank)],
+        ))
     }
 
     fn on_request(&self, request: &mut Request<'_>, _: &rocket::Data) {
@@ -141,7 +135,7 @@ mod tests {
     use rocket::local::Client;
     use rocket::Rocket;
 
-    use crate::{AllOrSome, AllowedHeaders, AllowedOrigins, Cors};
+    use crate::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
 
     const CORS_ROOT: &'static str = "/my_cors";
 
@@ -149,7 +143,7 @@ mod tests {
         let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
         assert!(failed_origins.is_empty());
 
-        Cors {
+        CorsOptions {
             allowed_origins: allowed_origins,
             allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
@@ -158,6 +152,8 @@ mod tests {
 
             ..Default::default()
         }
+        .to_cors()
+        .expect("Not to fail")
     }
 
     fn rocket(fairing: Cors) -> Rocket {
@@ -189,16 +185,6 @@ mod tests {
             .routes()
             .find(|r| r.method == Method::Get && r.uri.to_string() == expected_uri);
         assert!(error_route.is_some());
-    }
-
-    #[test]
-    #[should_panic(expected = "launch fairing failure")]
-    fn options_are_validated_on_attach() {
-        let mut options = make_cors_options();
-        options.allowed_origins = AllOrSome::All;
-        options.send_wildcard = true;
-
-        let _ = rocket(options).launch();
     }
 
     // Rest of the things can only be tested in integration tests

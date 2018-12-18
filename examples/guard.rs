@@ -40,7 +40,7 @@ fn main() {
     assert!(failed_origins.is_empty());
 
     // You can also deserialize this
-    let options = rocket_cors::Cors {
+    let options = rocket_cors::CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
@@ -54,6 +54,6 @@ fn main() {
         .mount("/", rocket_cors::catch_all_options_routes())
         // You can also manually mount an OPTIONS route that will be used instead
         .mount("/", routes![manual, manual_options])
-        .manage(options)
+        .manage(options.to_cors().expect("Not to fail"))
         .launch();
 }
