@@ -1,505 +1,507 @@
-//! [![Build Status](https://travis-ci.org/lawliet89/rocket_cors.svg)](https://travis-ci.org/lawliet89/rocket_cors)
-//! [![Dependency Status](https://dependencyci.com/github/lawliet89/rocket_cors/badge)](https://dependencyci.com/github/lawliet89/rocket_cors)
-//! [![Repository](https://img.shields.io/github/tag/lawliet89/rocket_cors.svg)](https://github.com/lawliet89/rocket_cors)
-//! [![Crates.io](https://img.shields.io/crates/v/rocket_cors.svg)](https://crates.io/crates/rocket_cors)
-//!
-//! - Documentation: [master branch](https://lawliet89.github.io/rocket_cors) | [stable](https://docs.rs/rocket_cors)
-//!
-//! Cross-origin resource sharing (CORS) for [Rocket](https://rocket.rs/) applications
-//!
-//! ## Requirements
-//!
-//! - Nightly Rust
-//! - Rocket >= 0.4
-//!
-//! If you are using Rocket 0.3, use the `0.3.0` version of this crate.
-//!
-//! ### Nightly Rust
-//!
-//! Rocket requires nightly Rust. You should probably install Rust with
-//! [rustup](https://www.rustup.rs/), then override the code directory to use nightly instead of
-//! stable. See
-//! [installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
-//!
-//! In particular, `rocket_cors` is currently targetted for the latest `nightly`. Older nightlies
-//! might work, but they are subject to the minimum that Rocket sets.
-//!
-//! ## Installation
-//!
-//! Add the following to Cargo.toml:
-//!
-//! ```toml
-//! rocket_cors = "0.4.0"
-//! ```
-//!
-//! To use the latest `master` branch, for example:
-//!
-//! ```toml
-//! rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
-//! ```
-//!
-//! ## Features
-//!
-//! By default, a `serialization` feature is enabled in this crate that allows you to (de)serialize
-//! the `Cors` struct that is described below. If you would like to disable this, simply change
-//! your `Cargo.toml` to:
-//!
-//! ```toml
-//! rocket_cors = { version = "0.4.0", default-features = false }
-//! ```
-//!
-//! ## Usage
-//!
-//! Before you can add CORS responses to your application, you need to create a `Cors` struct that
-//! will hold the settings.
-//!
-//! Each of the examples can be run off the repository via `cargo run --example xxx` where `xxx` is
-//!
-//! - `fairing`
-//! - `guard`
-//! - `manual`
-//!
-//! ### `Cors` Struct
-//!
-//! The [`Cors` struct](Cors) contains the settings for CORS requests to be validated
-//! and for responses to be generated. Defaults are defined for every field in the struct, and
-//! are documented on the [`Cors` struct](Cors) page. You can also deserialize
-//! the struct from some format like JSON, YAML or TOML when the default `serialization` feature
-//! is enabled.
-//!
-//! ### Three modes of operation
-//!
-//! You can add CORS to your routes via one of three ways, in descending order of ease and in
-//! ascending order of flexibility.
-//!
-//! - Fairing (should only used exclusively)
-//! - Request Guard
-//! - Truly Manual
-//!
-//! Unfortunately, you cannot mix and match Fairing with any other of the methods, due to the
-//! limitation of Rocket's fairing API. That is, the checks for Fairing will always happen first,
-//! and if they fail, the route is never executed and so your guard or manual checks will never
-//! get executed.
-//!
-//! You can, however, mix and match guards and manual checks.
-//!
-//! In summary:
-//!
-//! |                                         | Fairing | Request Guard | Manual |
-//! |:---------------------------------------:|:-------:|:-------------:|:------:|
-//! |         Must apply to all routes        |    ✔    |       ✗       |    ✗   |
-//! | Different settings for different routes |    ✗    |       ✗       |    ✔   |
-//! |     May define custom OPTIONS routes    |    ✗    |       ✔       |    ✔   |
-//!
-//! ### Fairing
-//!
-//! Fairing is the easiest to use and also the most inflexible. You don't have to define `OPTIONS`
-//! routes for your application, and the checks are done transparently.
-//!
-//! However, you can only have one set of settings that must apply to all routes. You cannot opt
-//! any route out of CORS checks.
-//!
-//! To use this, simply create a [`Cors` struct](Cors) and then
-//! [`attach`](https://api.rocket.rs/rocket/struct.Rocket.html#method.attach) it to Rocket.
-//!
-//! ```rust,no_run
-//! #![feature(proc_macro_hygiene, decl_macro)]
-//! extern crate rocket;
-//! extern crate rocket_cors;
-//!
-//! use rocket::{get, routes};
-//! use rocket::http::Method;
-//! use rocket_cors::{AllowedOrigins, AllowedHeaders};
-//!
-//! #[get("/")]
-//! fn cors<'a>() -> &'a str {
-//!     "Hello CORS"
-//! }
-//!
-//! fn main() {
-//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-//!     assert!(failed_origins.is_empty());
-//!
-//!     // You can also deserialize this
-//!     let options = rocket_cors::Cors {
-//!         allowed_origins: allowed_origins,
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
-//!         allow_credentials: true,
-//!         ..Default::default()
-//!     };
-//!
-//!     rocket::ignite()
-//!         .mount("/", routes![cors])
-//!         .attach(options)
-//!         .launch();
-//! }
-//!
-//! ```
-//! #### Injected Route
-//!
-//! The fairing implementation will inject a route during attachment to Rocket. This route is used
-//! to handle errors during CORS validation.
-//!
-//! This is due to the limitation in Rocket's Fairing
-//! [lifecycle](https://rocket.rs/guide/fairings/). Ideally, we want to validate the CORS request
-//! during `on_request`, and if the validation fails, we want to stop the route from even executing
-//! to
-//!
-//! 1) prevent side effects
-//! 1) prevent resource usage from unnecessary computation
-//!
-//! The only way to do this is to hijack the request and route it to our own injected route to
-//! handle errors. Rocket does not allow Fairings to stop the processing of a route.
-//!
-//! You can configure the behaviour of the injected route through a couple of fields in the
-//! [`Cors` struct](Cors).
-//!
-//! ### Request Guard
-//!
-//! Using request guard requires you to sacrifice the convenience of Fairings for being able to
-//! opt some routes out of CORS checks and enforcement. _BUT_ you are still restricted to only
-//! one set of CORS settings and you have to mount additional routes to catch and process OPTIONS
-//! requests. The `OPTIONS` routes are used for CORS preflight checks.
-//!
-//! You will have to do the following:
-//!
-//! - Create a [`Cors` struct](Cors) and during Rocket's ignite, add the struct to
-//! Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
-//! - For all the routes that you want to enforce CORS on, you can mount either some
-//! [catch all route](catch_all_options_routes) or define your own route for the OPTIONS
-//! verb.
-//! - Then in all the routes you want to enforce CORS on, add a
-//! [Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
-//! [`Guard`](Guard) struct in the route arguments. You should not wrap this in an
-//! `Option` or `Result` because the guard will let non-CORS requests through and will take over
-//! error handling in case of errors.
-//! - In your routes, to add CORS headers to your responses, use the appropriate functions on the
-//! [`Guard`](Guard) for a `Response` or a `Responder`.
-//!
-//! ```rust,no_run
-//! #![feature(proc_macro_hygiene, decl_macro)]
-//! extern crate rocket;
-//! extern crate rocket_cors;
-//!
-//! use std::io::Cursor;
-//!
-//! use rocket::{Response, get, options, routes};
-//! use rocket::http::Method;
-//! use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
-//!
-//! /// Using a `Responder` -- the usual way you would use this
-//! #[get("/")]
-//! fn responder(cors: Guard) -> Responder<&str> {
-//!     cors.responder("Hello CORS!")
-//! }
-//!
-//! /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
-//! #[get("/response")]
-//! fn response(cors: Guard) -> Response {
-//!     let mut response = Response::new();
-//!     response.set_sized_body(Cursor::new("Hello CORS!"));
-//!     cors.response(response)
-//! }
-//!
-//! /// Manually mount an OPTIONS route for your own handling
-//! #[options("/manual")]
-//! fn manual_options(cors: Guard) -> Responder<&str> {
-//!     cors.responder("Manual OPTIONS preflight handling")
-//! }
-//!
-//! /// Manually mount an OPTIONS route for your own handling
-//! #[get("/manual")]
-//! fn manual(cors: Guard) -> Responder<&str> {
-//!     cors.responder("Manual OPTIONS preflight handling")
-//! }
-//!
-//! fn main() {
-//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-//!     assert!(failed_origins.is_empty());
-//!
-//!     // You can also deserialize this
-//!     let options = rocket_cors::Cors {
-//!         allowed_origins: allowed_origins,
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
-//!         allow_credentials: true,
-//!         ..Default::default()
-//!     };
-//!
-//!     rocket::ignite()
-//!         .mount(
-//!             "/",
-//!             routes![responder, response],
-//!         )
-//!         // Mount the routes to catch all the OPTIONS pre-flight requests
-//!         .mount("/", rocket_cors::catch_all_options_routes())
-//!         // You can also manually mount an OPTIONS route that will be used instead
-//!         .mount("/", routes![manual, manual_options])
-//!         .manage(options)
-//!         .launch();
-//! }
-//! ```
-//!
-//! ## Truly Manual
-//!
-//! This mode is the most difficult to use but offers the most amount of flexibility.
-//! You might have to understand how the library works internally to know how to use this mode.
-//! In exchange, you can selectively choose which routes to offer CORS protection to, and you
-//! can mix and match CORS settings for the routes. You can combine usage of this mode with
-//! "guard" to offer a mix of ease of use and flexibility.
-//!
-//! You really do not need to use this unless you have a truly ad-hoc need to respond to CORS
-//! differently in a route. For example, you have a `ping` endpoint that allows all origins but
-//! the rest of your routes do not.
-//!
-//! ### Handler
-//!
-//! This mode requires that you pass in a closure that will be lazily evaluated once a CORS request
-//! has been validated. If validation fails, the closure will not be run. You should put any code
-//! that has any side effects or with an appreciable computation cost inside this handler.
-//!
-//! ### Steps to perform:
-//! - You will first need to have a `Cors` struct ready. This struct can be borrowed with a lifetime
-//! at least as long as `'r` which is the lifetime of a Rocket request. `'static` works too.
-//! In this case, you might as well use the `Guard` method above and place the `Cors` struct in
-//! Rocket's [state](https://rocket.rs/guide/state/).
-//! Alternatively, you can create a `Cors` struct directly in the route.
-//! - Your routes _might_ need to have a `'r` lifetime and return `impl Responder<'r>`. See below.
-//! - Using the `Cors` struct, use either the
-//! [`respond_owned`](Cors#method.respond_owned) or
-//! [`respond_borrowed`](Cors#method.respond_borrowed) function and pass in a handler
-//! that will be executed once CORS validation is successful.
-//! - Your handler will be passed a [`Guard`](Guard) which you will have to use to
-//! add CORS headers into your own response.
-//! - You will have to manually define your own `OPTIONS` routes.
-//!
-//! ### Notes about route lifetime
-//! You might have to specify a `'r` lifetime in your routes and then return `impl Responder<'r>`.
-//! If you are not sure what to do, you can try to leave the lifetime out and then add it in
-//! when the compiler complains.
-//!
-//! Generally, you will need to manually annotate the lifetime for the following cases where
-//! the compiler is unable to [elide](https://doc.rust-lang.org/beta/nomicon/lifetime-elision.html)
-//! the lifetime:
-//!
-//! - Your function arguments do not borrow anything.
-//! - Your function arguments borrow from more than one lifetime.
-//! - Your function arguments borrow from a lifetime that is shorter than the `'r` lifetime
-//! required.
-//!
-//! You can see examples when the lifetime annotation is required (or not) in `examples/manual.rs`.
-//!
-//! ### Owned example
-//! This is the most likely scenario when you want to have manual CORS validation. You can use this
-//! when the settings you want to use for a route is not the same as the rest of the application
-//! (which you might have put in Rocket's state).
-//!
-//! ```rust,no_run
-//! #![feature(proc_macro_hygiene, decl_macro)]
-//! extern crate rocket;
-//! extern crate rocket_cors;
-//!
-//! use rocket::{get, options, routes};
-//! use rocket::http::Method;
-//! use rocket::response::Responder;
-//! use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
-//!
-//! /// Create and use an ad-hoc Cors
-//! #[get("/owned")]
-//! fn owned<'r>() -> impl Responder<'r> {
-//!     let options = cors_options();
-//!     options.respond_owned(|guard| guard.responder("Hello CORS"))
-//! }
-//!
-//! /// You need to define an OPTIONS route for preflight checks.
-//! /// These routes can just return the unit type `()`
-//! #[options("/owned")]
-//! fn owned_options<'r>() -> impl Responder<'r> {
-//!     let options = cors_options();
-//!     options.respond_owned(|guard| guard.responder(()))
-//! }
-//!
-//! fn cors_options() -> Cors {
-//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-//!     assert!(failed_origins.is_empty());
-//!
-//!     // You can also deserialize this
-//!     rocket_cors::Cors {
-//!         allowed_origins: allowed_origins,
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
-//!         allow_credentials: true,
-//!         ..Default::default()
-//!     }
-//! }
-//!
-//! fn main() {
-//!     rocket::ignite()
-//!         .mount(
-//!             "/",
-//!             routes![
-//!                 owned,
-//!                 owned_options,
-//!             ],
-//!         )
-//!         .manage(cors_options())
-//!         .launch();
-//! }
-//! ```
-//!
-//! ### Borrowed Example
-//! You might want to borrow the `Cors` struct from Rocket's state, for example. Unless you have
-//! special handling, you might want to use the Guard method instead which has less hassle.
-//!
-//! ```rust,no_run
-//! #![feature(proc_macro_hygiene, decl_macro)]
-//! extern crate rocket;
-//! extern crate rocket_cors;
-//!
-//! use std::io::Cursor;
-//!
-//! use rocket::{State, Response, get, routes};
-//! use rocket::http::Method;
-//! use rocket::response::Responder;
-//! use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
-//!
-//! /// Using a borrowed Cors
-//! #[get("/")]
-//! fn borrowed(options: State<Cors>) -> impl Responder {
-//!     options.inner().respond_borrowed(
-//!         |guard| guard.responder("Hello CORS"),
-//!     )
-//! }
-//!
-//! /// Using a `Response` instead of a `Responder`. You generally won't have to do this.
-//! #[get("/response")]
-//! fn response(options: State<Cors>) -> impl Responder {
-//!     let mut response = Response::new();
-//!     response.set_sized_body(Cursor::new("Hello CORS!"));
-//!
-//!     options.inner().respond_borrowed(
-//!         move |guard| guard.response(response),
-//!     )
-//! }
-//!
-//! fn cors_options() -> Cors {
-//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-//!     assert!(failed_origins.is_empty());
-//!
-//!     // You can also deserialize this
-//!     rocket_cors::Cors {
-//!         allowed_origins: allowed_origins,
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
-//!         allow_credentials: true,
-//!         ..Default::default()
-//!     }
-//! }
-//!
-//! fn main() {
-//!     rocket::ignite()
-//!         .mount(
-//!             "/",
-//!             routes![
-//!                 borrowed,
-//!                 response,
-//!             ],
-//!         )
-//!         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
-//!         .manage(cors_options())
-//!         .launch();
-//! }
-//! ```
-//!
-//! ## Mixing Guard and Manual
-//!
-//! You can mix `Guard` and `Truly Manual` modes together for your application. For example, your
-//! application might restrict the Origins that can access it, except for one `ping` route that
-//! allows all access.
-//!
-//! You can run the example code below with `cargo run --example mix`.
-//!
-//! ```rust,no_run
-//! #![feature(proc_macro_hygiene, decl_macro)]
-//! extern crate rocket;
-//! extern crate rocket_cors;
-//!
-//! use rocket::{get, options, routes};
-//! use rocket::http::Method;
-//! use rocket::response::Responder;
-//! use rocket_cors::{Cors, Guard, AllowedOrigins, AllowedHeaders};
-//!
-//! /// The "usual" app route
-//! #[get("/")]
-//! fn app(cors: Guard) -> rocket_cors::Responder<&str> {
-//!     cors.responder("Hello CORS!")
-//! }
-//!
-//! /// The special "ping" route
-//! #[get("/ping")]
-//! fn ping<'r>() -> impl Responder<'r> {
-//!     let options = cors_options_all();
-//!     options.respond_owned(|guard| guard.responder("Pong!"))
-//! }
-//!
-//! /// You need to define an OPTIONS route for preflight checks if you want to use `Cors` struct
-//! /// that is not in Rocket's managed state.
-//! /// These routes can just return the unit type `()`
-//! #[options("/ping")]
-//! fn ping_options<'r>() -> impl Responder<'r> {
-//!     let options = cors_options_all();
-//!     options.respond_owned(|guard| guard.responder(()))
-//! }
-//!
-//! /// Returns the "application wide" Cors struct
-//! fn cors_options() -> Cors {
-//!     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-//!     assert!(failed_origins.is_empty());
-//!
-//!     // You can also deserialize this
-//!     rocket_cors::Cors {
-//!         allowed_origins: allowed_origins,
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
-//!         allow_credentials: true,
-//!         ..Default::default()
-//!     }
-//! }
-//!
-//! /// A special struct that allows all origins
-//! ///
-//! /// Note: In your real application, you might want to use something like `lazy_static` to
-//! /// generate a `&'static` reference to this instead of creating a new struct on every request.
-//! fn cors_options_all() -> Cors {
-//!     // You can also deserialize this
-//!     rocket_cors::Cors {
-//!         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
-//!         ..Default::default()
-//!     }
-//! }
-//!
-//! fn main() {
-//!     rocket::ignite()
-//!         .mount(
-//!             "/",
-//!             routes![
-//!                 app,
-//!                 ping,
-//!                 ping_options,
-//!             ],
-//!         )
-//!         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
-//!         .manage(cors_options())
-//!         .launch();
-//! }
-//!
-//! ```
-//!
-//! ## Reference
-//! - [Fetch CORS Specification](https://fetch.spec.whatwg.org/#cors-protocol)
-//! - [Supplanted W3C CORS Specification](https://www.w3.org/TR/cors/)
-//! - [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
+/*!
+[![Build Status](https://travis-ci.org/lawliet89/rocket_cors.svg)](https://travis-ci.org/lawliet89/rocket_cors)
+[![Dependency Status](https://dependencyci.com/github/lawliet89/rocket_cors/badge)](https://dependencyci.com/github/lawliet89/rocket_cors)
+[![Repository](https://img.shields.io/github/tag/lawliet89/rocket_cors.svg)](https://github.com/lawliet89/rocket_cors)
+[![Crates.io](https://img.shields.io/crates/v/rocket_cors.svg)](https://crates.io/crates/rocket_cors)
+
+- Documentation: [master branch](https://lawliet89.github.io/rocket_cors) | [stable](https://docs.rs/rocket_cors)
+
+Cross-origin resource sharing (CORS) for [Rocket](https://rocket.rs/) applications
+
+## Requirements
+
+- Nightly Rust
+- Rocket >= 0.4
+
+If you are using Rocket 0.3, use the `0.3.0` version of this crate.
+
+### Nightly Rust
+
+Rocket requires nightly Rust. You should probably install Rust with
+[rustup](https://www.rustup.rs/), then override the code directory to use nightly instead of
+stable. See
+[installation instructions](https://rocket.rs/guide/getting-started/#installing-rust).
+
+In particular, `rocket_cors` is currently targetted for the latest `nightly`. Older nightlies
+might work, but they are subject to the minimum that Rocket sets.
+
+## Installation
+
+Add the following to Cargo.toml:
+
+```toml
+rocket_cors = "0.4.0"
+```
+
+To use the latest `master` branch, for example:
+
+```toml
+rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
+```
+
+## Features
+
+By default, a `serialization` feature is enabled in this crate that allows you to (de)serialize
+the `Cors` struct that is described below. If you would like to disable this, simply change
+your `Cargo.toml` to:
+
+```toml
+rocket_cors = { version = "0.4.0", default-features = false }
+```
+
+## Usage
+
+Before you can add CORS responses to your application, you need to create a `Cors` struct that
+will hold the settings.
+
+Each of the examples can be run off the repository via `cargo run --example xxx` where `xxx` is
+
+- `fairing`
+- `guard`
+- `manual`
+
+### `Cors` Struct
+
+The [`Cors` struct](Cors) contains the settings for CORS requests to be validated
+and for responses to be generated. Defaults are defined for every field in the struct, and
+are documented on the [`Cors` struct](Cors) page. You can also deserialize
+the struct from some format like JSON, YAML or TOML when the default `serialization` feature
+is enabled.
+
+### Three modes of operation
+
+You can add CORS to your routes via one of three ways, in descending order of ease and in
+ascending order of flexibility.
+
+- Fairing (should only used exclusively)
+- Request Guard
+- Truly Manual
+
+Unfortunately, you cannot mix and match Fairing with any other of the methods, due to the
+limitation of Rocket's fairing API. That is, the checks for Fairing will always happen first,
+and if they fail, the route is never executed and so your guard or manual checks will never
+get executed.
+
+You can, however, mix and match guards and manual checks.
+
+In summary:
+
+|                                         | Fairing | Request Guard | Manual |
+|:---------------------------------------:|:-------:|:-------------:|:------:|
+|         Must apply to all routes        |    ✔    |       ✗       |    ✗   |
+| Different settings for different routes |    ✗    |       ✗       |    ✔   |
+|     May define custom OPTIONS routes    |    ✗    |       ✔       |    ✔   |
+
+### Fairing
+
+Fairing is the easiest to use and also the most inflexible. You don't have to define `OPTIONS`
+routes for your application, and the checks are done transparently.
+
+However, you can only have one set of settings that must apply to all routes. You cannot opt
+any route out of CORS checks.
+
+To use this, simply create a [`Cors` struct](Cors) and then
+[`attach`](https://api.rocket.rs/rocket/struct.Rocket.html#method.attach) it to Rocket.
+
+```rust,no_run
+#![feature(proc_macro_hygiene, decl_macro)]
+extern crate rocket;
+extern crate rocket_cors;
+
+use rocket::{get, routes};
+use rocket::http::Method;
+use rocket_cors::{AllowedOrigins, AllowedHeaders};
+
+#[get("/")]
+fn cors<'a>() -> &'a str {
+    "Hello CORS"
+}
+
+fn main() {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+    assert!(failed_origins.is_empty());
+
+    // You can also deserialize this
+    let options = rocket_cors::Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    };
+
+    rocket::ignite()
+        .mount("/", routes![cors])
+        .attach(options)
+        .launch();
+}
+
+```
+#### Injected Route
+
+The fairing implementation will inject a route during attachment to Rocket. This route is used
+to handle errors during CORS validation.
+
+This is due to the limitation in Rocket's Fairing
+[lifecycle](https://rocket.rs/guide/fairings/). Ideally, we want to validate the CORS request
+during `on_request`, and if the validation fails, we want to stop the route from even executing
+to
+
+1) prevent side effects
+1) prevent resource usage from unnecessary computation
+
+The only way to do this is to hijack the request and route it to our own injected route to
+handle errors. Rocket does not allow Fairings to stop the processing of a route.
+
+You can configure the behaviour of the injected route through a couple of fields in the
+[`Cors` struct](Cors).
+
+### Request Guard
+
+Using request guard requires you to sacrifice the convenience of Fairings for being able to
+opt some routes out of CORS checks and enforcement. _BUT_ you are still restricted to only
+one set of CORS settings and you have to mount additional routes to catch and process OPTIONS
+requests. The `OPTIONS` routes are used for CORS preflight checks.
+
+You will have to do the following:
+
+- Create a [`Cors` struct](Cors) and during Rocket's ignite, add the struct to
+Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
+- For all the routes that you want to enforce CORS on, you can mount either some
+[catch all route](catch_all_options_routes) or define your own route for the OPTIONS
+verb.
+- Then in all the routes you want to enforce CORS on, add a
+[Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
+[`Guard`](Guard) struct in the route arguments. You should not wrap this in an
+`Option` or `Result` because the guard will let non-CORS requests through and will take over
+error handling in case of errors.
+- In your routes, to add CORS headers to your responses, use the appropriate functions on the
+[`Guard`](Guard) for a `Response` or a `Responder`.
+
+```rust,no_run
+#![feature(proc_macro_hygiene, decl_macro)]
+extern crate rocket;
+extern crate rocket_cors;
+
+use std::io::Cursor;
+
+use rocket::{Response, get, options, routes};
+use rocket::http::Method;
+use rocket_cors::{Guard, AllowedOrigins, AllowedHeaders, Responder};
+
+/// Using a `Responder` -- the usual way you would use this
+#[get("/")]
+fn responder(cors: Guard) -> Responder<&str> {
+    cors.responder("Hello CORS!")
+}
+
+/// Using a `Response` instead of a `Responder`. You generally won't have to do this.
+#[get("/response")]
+fn response(cors: Guard) -> Response {
+    let mut response = Response::new();
+    response.set_sized_body(Cursor::new("Hello CORS!"));
+    cors.response(response)
+}
+
+/// Manually mount an OPTIONS route for your own handling
+#[options("/manual")]
+fn manual_options(cors: Guard) -> Responder<&str> {
+    cors.responder("Manual OPTIONS preflight handling")
+}
+
+/// Manually mount an OPTIONS route for your own handling
+#[get("/manual")]
+fn manual(cors: Guard) -> Responder<&str> {
+    cors.responder("Manual OPTIONS preflight handling")
+}
+
+fn main() {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+    assert!(failed_origins.is_empty());
+
+    // You can also deserialize this
+    let options = rocket_cors::Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    };
+
+    rocket::ignite()
+        .mount(
+            "/",
+            routes![responder, response],
+        )
+        // Mount the routes to catch all the OPTIONS pre-flight requests
+        .mount("/", rocket_cors::catch_all_options_routes())
+        // You can also manually mount an OPTIONS route that will be used instead
+        .mount("/", routes![manual, manual_options])
+        .manage(options)
+        .launch();
+}
+```
+
+## Truly Manual
+
+This mode is the most difficult to use but offers the most amount of flexibility.
+You might have to understand how the library works internally to know how to use this mode.
+In exchange, you can selectively choose which routes to offer CORS protection to, and you
+can mix and match CORS settings for the routes. You can combine usage of this mode with
+"guard" to offer a mix of ease of use and flexibility.
+
+You really do not need to use this unless you have a truly ad-hoc need to respond to CORS
+differently in a route. For example, you have a `ping` endpoint that allows all origins but
+the rest of your routes do not.
+
+### Handler
+
+This mode requires that you pass in a closure that will be lazily evaluated once a CORS request
+has been validated. If validation fails, the closure will not be run. You should put any code
+that has any side effects or with an appreciable computation cost inside this handler.
+
+### Steps to perform:
+- You will first need to have a `Cors` struct ready. This struct can be borrowed with a lifetime
+at least as long as `'r` which is the lifetime of a Rocket request. `'static` works too.
+In this case, you might as well use the `Guard` method above and place the `Cors` struct in
+Rocket's [state](https://rocket.rs/guide/state/).
+Alternatively, you can create a `Cors` struct directly in the route.
+- Your routes _might_ need to have a `'r` lifetime and return `impl Responder<'r>`. See below.
+- Using the `Cors` struct, use either the
+[`respond_owned`](Cors#method.respond_owned) or
+[`respond_borrowed`](Cors#method.respond_borrowed) function and pass in a handler
+that will be executed once CORS validation is successful.
+- Your handler will be passed a [`Guard`](Guard) which you will have to use to
+add CORS headers into your own response.
+- You will have to manually define your own `OPTIONS` routes.
+
+### Notes about route lifetime
+You might have to specify a `'r` lifetime in your routes and then return `impl Responder<'r>`.
+If you are not sure what to do, you can try to leave the lifetime out and then add it in
+when the compiler complains.
+
+Generally, you will need to manually annotate the lifetime for the following cases where
+the compiler is unable to [elide](https://doc.rust-lang.org/beta/nomicon/lifetime-elision.html)
+the lifetime:
+
+- Your function arguments do not borrow anything.
+- Your function arguments borrow from more than one lifetime.
+- Your function arguments borrow from a lifetime that is shorter than the `'r` lifetime
+required.
+
+You can see examples when the lifetime annotation is required (or not) in `examples/manual.rs`.
+
+### Owned example
+This is the most likely scenario when you want to have manual CORS validation. You can use this
+when the settings you want to use for a route is not the same as the rest of the application
+(which you might have put in Rocket's state).
+
+```rust,no_run
+#![feature(proc_macro_hygiene, decl_macro)]
+extern crate rocket;
+extern crate rocket_cors;
+
+use rocket::{get, options, routes};
+use rocket::http::Method;
+use rocket::response::Responder;
+use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
+
+/// Create and use an ad-hoc Cors
+#[get("/owned")]
+fn owned<'r>() -> impl Responder<'r> {
+    let options = cors_options();
+    options.respond_owned(|guard| guard.responder("Hello CORS"))
+}
+
+/// You need to define an OPTIONS route for preflight checks.
+/// These routes can just return the unit type `()`
+#[options("/owned")]
+fn owned_options<'r>() -> impl Responder<'r> {
+    let options = cors_options();
+    options.respond_owned(|guard| guard.responder(()))
+}
+
+fn cors_options() -> Cors {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+    assert!(failed_origins.is_empty());
+
+    // You can also deserialize this
+    rocket_cors::Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    }
+}
+
+fn main() {
+    rocket::ignite()
+        .mount(
+            "/",
+            routes![
+                owned,
+                owned_options,
+            ],
+        )
+        .manage(cors_options())
+        .launch();
+}
+```
+
+### Borrowed Example
+You might want to borrow the `Cors` struct from Rocket's state, for example. Unless you have
+special handling, you might want to use the Guard method instead which has less hassle.
+
+```rust,no_run
+#![feature(proc_macro_hygiene, decl_macro)]
+extern crate rocket;
+extern crate rocket_cors;
+
+use std::io::Cursor;
+
+use rocket::{State, Response, get, routes};
+use rocket::http::Method;
+use rocket::response::Responder;
+use rocket_cors::{Cors, AllowedOrigins, AllowedHeaders};
+
+/// Using a borrowed Cors
+#[get("/")]
+fn borrowed(options: State<Cors>) -> impl Responder {
+    options.inner().respond_borrowed(
+        |guard| guard.responder("Hello CORS"),
+    )
+}
+
+/// Using a `Response` instead of a `Responder`. You generally won't have to do this.
+#[get("/response")]
+fn response(options: State<Cors>) -> impl Responder {
+    let mut response = Response::new();
+    response.set_sized_body(Cursor::new("Hello CORS!"));
+
+    options.inner().respond_borrowed(
+        move |guard| guard.response(response),
+    )
+}
+
+fn cors_options() -> Cors {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+    assert!(failed_origins.is_empty());
+
+    // You can also deserialize this
+    rocket_cors::Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    }
+}
+
+fn main() {
+    rocket::ignite()
+        .mount(
+            "/",
+            routes![
+                borrowed,
+                response,
+            ],
+        )
+        .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
+        .manage(cors_options())
+        .launch();
+}
+```
+
+## Mixing Guard and Manual
+
+You can mix `Guard` and `Truly Manual` modes together for your application. For example, your
+application might restrict the Origins that can access it, except for one `ping` route that
+allows all access.
+
+You can run the example code below with `cargo run --example mix`.
+
+```rust,no_run
+#![feature(proc_macro_hygiene, decl_macro)]
+extern crate rocket;
+extern crate rocket_cors;
+
+use rocket::{get, options, routes};
+use rocket::http::Method;
+use rocket::response::Responder;
+use rocket_cors::{Cors, Guard, AllowedOrigins, AllowedHeaders};
+
+/// The "usual" app route
+#[get("/")]
+fn app(cors: Guard) -> rocket_cors::Responder<&str> {
+    cors.responder("Hello CORS!")
+}
+
+/// The special "ping" route
+#[get("/ping")]
+fn ping<'r>() -> impl Responder<'r> {
+    let options = cors_options_all();
+    options.respond_owned(|guard| guard.responder("Pong!"))
+}
+
+/// You need to define an OPTIONS route for preflight checks if you want to use `Cors` struct
+/// that is not in Rocket's managed state.
+/// These routes can just return the unit type `()`
+#[options("/ping")]
+fn ping_options<'r>() -> impl Responder<'r> {
+    let options = cors_options_all();
+    options.respond_owned(|guard| guard.responder(()))
+}
+
+/// Returns the "application wide" Cors struct
+fn cors_options() -> Cors {
+    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
+    assert!(failed_origins.is_empty());
+
+    // You can also deserialize this
+    rocket_cors::Cors {
+        allowed_origins: allowed_origins,
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allow_credentials: true,
+        ..Default::default()
+    }
+}
+
+/// A special struct that allows all origins
+///
+/// Note: In your real application, you might want to use something like `lazy_static` to
+/// generate a `&'static` reference to this instead of creating a new struct on every request.
+fn cors_options_all() -> Cors {
+    // You can also deserialize this
+    rocket_cors::Cors {
+        allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
+        ..Default::default()
+    }
+}
+
+fn main() {
+    rocket::ignite()
+        .mount(
+            "/",
+            routes![
+                app,
+                ping,
+                ping_options,
+            ],
+        )
+        .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
+        .manage(cors_options())
+        .launch();
+}
+
+```
+
+## Reference
+- [Fetch CORS Specification](https://fetch.spec.whatwg.org/#cors-protocol)
+- [Supplanted W3C CORS Specification](https://www.w3.org/TR/cors/)
+- [Resource Advice](https://w3c.github.io/webappsec-cors-for-developers/#resources)
+*/
 
 #![deny(
     const_err,
