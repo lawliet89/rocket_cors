@@ -717,17 +717,6 @@ impl<T> AllOrSome<T> {
     }
 }
 
-impl AllOrSome<HashSet<Url>> {
-    #[deprecated(since = "0.1.3", note = "please use `AllowedOrigins::Some` instead")]
-    /// New `AllOrSome` from a list of URL strings.
-    /// Returns a tuple where the first element is the struct `AllOrSome`,
-    /// and the second element
-    /// is a map of strings which failed to parse into URLs and their associated parse errors.
-    pub fn new_from_str_list(urls: &[&str]) -> (Self, HashMap<String, url::ParseError>) {
-        AllowedOrigins::some(urls)
-    }
-}
-
 /// A wrapper type around `rocket::http::Method` to support serialization and deserialization
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Method(http::Method);
