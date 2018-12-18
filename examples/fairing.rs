@@ -4,14 +4,14 @@ use rocket_cors;
 
 use rocket::http::Method;
 use rocket::{get, routes};
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Error};
 
 #[get("/")]
 fn cors<'a>() -> &'a str {
     "Hello CORS"
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
@@ -23,11 +23,12 @@ fn main() {
         allow_credentials: true,
         ..Default::default()
     }
-    .to_cors()
-    .expect("To not fail");
+    .to_cors()?;
 
     rocket::ignite()
         .mount("/", routes![cors])
         .attach(cors)
         .launch();
+
+    Ok(())
 }
