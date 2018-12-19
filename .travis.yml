@@ -27,10 +27,14 @@ before_script:
     export PATH=$HOME/.local/bin:$PATH
   # Remove rust-toolchain override for tests
   - rm rust-toolchain
+  - rustup component add rustfmt
+  - rustup component add clippy || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy
 script:
+  - cargo fmt -- --check
+  - cargo clippy "${CARGO_FLAGS}" -- -D warnings
   - |
-    travis-cargo build -- "${CARGO_FLAGS}" &&
-    travis-cargo test -- "${CARGO_FLAGS}" &&
+    cargo build "${CARGO_FLAGS}" &&
+    cargo test "${CARGO_FLAGS}" &&
     travis-cargo --only nightly doc -- --no-deps "${CARGO_FLAGS}"
 after_success:
   - test $CARGO_FLAGS = "--all-features" && travis-cargo --only nightly doc-upload
