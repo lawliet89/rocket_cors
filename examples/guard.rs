@@ -7,7 +7,7 @@ use std::io::Cursor;
 use rocket::http::Method;
 use rocket::Response;
 use rocket::{get, options, routes};
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Guard, Responder};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Error, Guard, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
@@ -35,18 +35,19 @@ fn manual(cors: Guard<'_>) -> Responder<'_, &str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
     // You can also deserialize this
-    let options = rocket_cors::Cors {
+    let cors = rocket_cors::CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
-    };
+    }
+    .to_cors()?;
 
     rocket::ignite()
         .mount("/", routes![responder, response])
@@ -54,6 +55,8 @@ fn main() {
         .mount("/", rocket_cors::catch_all_options_routes())
         // You can also manually mount an OPTIONS route that will be used instead
         .mount("/", routes![manual, manual_options])
-        .manage(options)
+        .manage(cors)
         .launch();
+
+    Ok(())
 }

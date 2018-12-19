@@ -6,17 +6,17 @@
 use rocket_cors as cors;
 use serde_json;
 
-use crate::cors::{AllowedHeaders, AllowedOrigins, Cors};
+use crate::cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use rocket::http::Method;
 
 fn main() {
     // The default demonstrates the "All" serialization of several of the settings
-    let default: Cors = Default::default();
+    let default: CorsOptions = Default::default();
 
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    let options = cors::Cors {
+    let options = cors::CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get, Method::Post, Method::Delete]
             .into_iter()

@@ -21,23 +21,25 @@ fn panicking_route() {
     panic!("This route will panic");
 }
 
-fn make_cors_options() -> Cors {
+fn make_cors() -> Cors {
     let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
     assert!(failed_origins.is_empty());
 
-    Cors {
+    CorsOptions {
         allowed_origins: allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
         ..Default::default()
     }
+    .to_cors()
+    .expect("To not fail")
 }
 
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", routes![cors, panicking_route])
-        .attach(make_cors_options())
+        .attach(make_cors())
 }
 
 #[test]
