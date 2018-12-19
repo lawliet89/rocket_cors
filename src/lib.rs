@@ -267,8 +267,6 @@ See the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/
     intra_doc_link_resolution_failure
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
-#![feature(never_type)]
-#![feature(exhaustive_patterns)]
 
 #[cfg(test)]
 #[macro_use]
@@ -533,21 +531,14 @@ mod method_serde {
 /// let all_origins = AllowedOrigins::all();
 /// let some_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 /// ```
-pub type AllowedOrigins = AllOrSome<HashSet<Origin>>;
+pub type AllowedOrigins = AllOrSome<HashSet<String>>;
 
 impl AllowedOrigins {
     /// Allows some origins
     ///
     /// Validation is not performed at this stage, but at a later stage.
     pub fn some(urls: &[&str]) -> Self {
-        AllOrSome::Some(
-            urls.iter()
-                .map(|s| {
-                    let Ok(s) = FromStr::from_str(s);
-                    s
-                })
-                .collect(),
-        )
+        AllOrSome::Some(urls.iter().map(|s| s.to_string()).collect())
     }
 
     /// Allows all origins
@@ -1308,7 +1299,7 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
             // Not a CORS request
             return Ok(ValidationResult::None);
         }
-        Some(origin) => to_origin(origin)?,
+        Some(origin) => origin,
     };
 
     // Check if the request verb is an OPTION or something else
@@ -1317,11 +1308,16 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
             let method = request_method(request)?;
             let headers = request_headers(request)?;
             preflight_validate(options, &origin, &method, &headers)?;
-            Ok(ValidationResult::Preflight { origin, headers })
+            Ok(ValidationResult::Preflight {
+                origin: origin.deref().clone(),
+                headers,
+            })
         }
         _ => {
             actual_request_validate(options, &origin)?;
-            Ok(ValidationResult::Request { origin })
+            Ok(ValidationResult::Request {
+                origin: origin.deref().clone(),
+            })
         }
     }
 }
@@ -1705,8 +1701,7 @@ mod tests {
     #[test]
     fn validate_origin_allows_all_origins() {
         let url = "https://www.example.com";
-        let Ok(origin) = Origin::from_str(url);
-        let origin = not_err!(to_origin(&origin));
+        let origin = not_err!(to_origin(&url));
         let allowed_origins = AllOrSome::All;
 
         not_err!(validate_origin(&origin, &allowed_origins));
@@ -1715,8 +1710,7 @@ mod tests {
     #[test]
     fn validate_origin_allows_origin() {
         let url = "https://www.example.com";
-        let Ok(origin) = Origin::from_str(url);
-        let origin = not_err!(to_origin(&origin));
+        let origin = not_err!(to_origin(&url));
         let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(&[
             "https://www.example.com"
         ])));
@@ -1728,8 +1722,7 @@ mod tests {
     #[should_panic(expected = "OriginNotAllowed")]
     fn validate_origin_rejects_invalid_origin() {
         let url = "https://www.acme.com";
-        let Ok(origin) = Origin::from_str(url);
-        let origin = not_err!(to_origin(&origin));
+        let origin = not_err!(to_origin(&url));
         let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(&[
             "https://www.example.com"
         ])));

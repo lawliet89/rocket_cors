@@ -64,34 +64,27 @@ pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that `Origin` is passed in correctly.
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
-#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-pub struct Origin(pub String);
+pub struct Origin(pub url::Origin);
 
 impl FromStr for Origin {
-    type Err = !;
+    type Err = crate::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(Origin(input.to_string()))
+        Ok(Origin(crate::to_origin(input)?))
     }
 }
 
 impl Deref for Origin {
-    type Target = str;
+    type Target = url::Origin;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl AsRef<str> for Origin {
-    fn as_ref(&self) -> &str {
-        self
-    }
-}
-
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_ref().fmt(f)
+        write!(f, "{}", self.ascii_serialization())
     }
 }
 
@@ -100,10 +93,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for Origin {
 
     fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Origin") {
-            Some(origin) => {
-                let Ok(origin) = Self::from_str(origin);
-                Outcome::Success(origin)
-            }
+            Some(origin) => match Self::from_str(origin) {
+                Ok(origin) => Outcome::Success(origin),
+                Err(e) => Outcome::Failure((Status::BadRequest, e)),
+            },
             None => Outcome::Forward(()),
         }
     }
@@ -199,17 +192,17 @@ mod tests {
     #[test]
     fn origin_header_conversion() {
         let url = "https://foo.bar.xyz";
-        let Ok(parsed) = Origin::from_str(url);
-        assert_eq!(parsed.as_ref(), url);
+        let parsed = not_err!(Origin::from_str(url));
+        assert_eq!(parsed.ascii_serialization(), url);
 
-        let url = "https://foo.bar.xyz/path/somewhere"; // this should never really be used
-        let Ok(parsed) = Origin::from_str(url);
-        assert_eq!(parsed.as_ref(), url);
+        // this should never really be sent by a compliant user agent
+        let url = "https://foo.bar.xyz/path/somewhere";
+        let parsed = not_err!(Origin::from_str(url));
+        let expected = "https://foo.bar.xyz";
+        assert_eq!(parsed.ascii_serialization(), expected);
 
-        // Validation is not done now
         let url = "invalid_url";
-        let Ok(parsed) = Origin::from_str(url);
-        assert_eq!(parsed.as_ref(), url);
+        let _ = is_err!(Origin::from_str(url));
     }
 
     #[test]
@@ -223,7 +216,7 @@ mod tests {
         let outcome: request::Outcome<Origin, crate::Error> =
             FromRequest::from_request(request.inner());
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
-        assert_eq!("https://www.example.com", parsed_header.as_ref());
+        assert_eq!("https://www.example.com", parsed_header.ascii_serialization());
     }
 
     #[test]

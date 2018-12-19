@@ -53,7 +53,7 @@ fn on_response_wrapper(
             // Not a CORS request
             return Ok(());
         }
-        Some(origin) => crate::to_origin(origin)?,
+        Some(origin) => origin,
     };
 
     let result = request.local_cache(|| unreachable!("This should not be executed so late"));
