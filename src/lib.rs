@@ -857,7 +857,7 @@ impl Cors {
     /// Create a `Cors` struct from a [`CorsOptions`]
     pub fn from_options(options: &CorsOptions) -> Result<Self, Error> {
         options.validate()?;
-        Ok(Self(options.clone()))
+        Ok(Cors(options.clone()))
     }
 
     /// Manually respond to a request with CORS checks and headers using an Owned `Cors`.
