@@ -53,7 +53,7 @@ fn on_response_wrapper(
             // Not a CORS request
             return Ok(());
         }
-        Some(origin) => origin,
+        Some(origin) => crate::to_origin(origin)?,
     };
 
     let result = request.local_cache(|| unreachable!("This should not be executed so late"));
@@ -140,8 +140,7 @@ mod tests {
     const CORS_ROOT: &'static str = "/my_cors";
 
     fn make_cors_options() -> Cors {
-        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-        assert!(failed_origins.is_empty());
+        let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 
         CorsOptions {
             allowed_origins,

@@ -267,6 +267,8 @@ See the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/
     intra_doc_link_resolution_failure
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
+#![feature(never_type)]
+#![feature(exhaustive_patterns)]
 
 #[cfg(test)]
 #[macro_use]
@@ -276,7 +278,7 @@ mod fairing;
 pub mod headers;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::error;
 use std::fmt;
 use std::marker::PhantomData;
@@ -293,7 +295,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
-    Origin, Url,
+    Origin,
 };
 
 /// Errors during operations
@@ -316,7 +318,7 @@ pub enum Error {
     /// The request header `Access-Control-Request-Headers`  is required but is missing.
     MissingRequestHeaders,
     /// Origin is not allowed to make this request
-    OriginNotAllowed(String),
+    OriginNotAllowed(url::Origin),
     /// Requested method is not allowed
     MethodNotAllowed(String),
     /// One or more headers requested are not allowed
@@ -365,7 +367,7 @@ impl fmt::Display for Error {
                 "The request header `Access-Control-Request-Headers` \
                  is required but is missing")
             }
-            Error::OriginNotAllowed(origin) => write!(f, "Origin '{}' is not allowed to request", &origin),
+            Error::OriginNotAllowed(origin) => write!(f, "Origin '{}' is not allowed to request", origin.ascii_serialization()),
             Error::MethodNotAllowed(method) => write!(f, "Method '{}' is not allowed", &method),
             Error::HeadersNotAllowed => write!(f, "Headers are not allowed"),
             Error::CredentialsWithWildcardOrigin => { write!(f,
@@ -395,6 +397,12 @@ impl<'r> response::Responder<'r> for Error {
     fn respond_to(self, _: &Request<'_>) -> Result<response::Response<'r>, Status> {
         error_!("CORS Error: {}", self);
         Err(self.status())
+    }
+}
+
+impl From<url::ParseError> for Error {
+    fn from(error: url::ParseError) -> Self {
+        Error::BadOrigin(error)
     }
 }
 
@@ -523,31 +531,23 @@ mod method_serde {
 /// use rocket_cors::AllowedOrigins;
 ///
 /// let all_origins = AllowedOrigins::all();
-/// let (some_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-/// assert!(failed_origins.is_empty());
+/// let some_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 /// ```
 pub type AllowedOrigins = AllOrSome<HashSet<Origin>>;
 
 impl AllowedOrigins {
     /// Allows some origins
     ///
-    /// Returns a tuple where the first element is the struct `AllowedOrigins`,
-    /// and the second element
-    /// is a map of strings which failed to parse into URLs and their associated parse errors.
-    pub fn some(urls: &[&str]) -> (Self, HashMap<String, url::ParseError>) {
-        let (ok_set, error_map): (Vec<_>, Vec<_>) = urls
-            .iter()
-            .map(|s| (s.to_string(), Url::from_str(s)))
-            .partition(|&(_, ref r)| r.is_ok());
-
-        let error_map = error_map
-            .into_iter()
-            .map(|(s, r)| (s.to_string(), r.unwrap_err()))
-            .collect();
-
-        let ok_set = ok_set.into_iter().map(|(_, r)| r.unwrap()).collect();
-
-        (AllOrSome::Some(ok_set), error_map)
+    /// Validation is not performed at this stage, but at a later stage.
+    pub fn some(urls: &[&str]) -> Self {
+        AllOrSome::Some(
+            urls.iter()
+                .map(|s| {
+                    let Ok(s) = FromStr::from_str(s);
+                    s
+                })
+                .collect(),
+        )
     }
 
     /// Allows all origins
@@ -646,7 +646,7 @@ impl AllowedHeaders {
 /// {
 ///   "allowed_origins": {
 ///     "Some": [
-///       "https://www.acme.com/"
+///       "https://www.acme.com"
 ///     ]
 ///   },
 ///   "allowed_methods": [
@@ -819,9 +819,7 @@ impl CorsOptions {
         0
     }
 
-    /// Validates if any of the settings are disallowed or incorrect
-    ///
-    /// This is run during initial Fairing attachment
+    /// Validates if any of the settings are disallowed, incorrect, or illegal
     pub fn validate(&self) -> Result<(), Error> {
         if self.allowed_origins.is_all() && self.send_wildcard && self.allow_credentials {
             Err(Error::CredentialsWithWildcardOrigin)?;
@@ -844,7 +842,7 @@ impl CorsOptions {
 /// This struct can be created by using [`CorsOptions::to_cors`] or [`Cors::from_options`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Cors {
-    pub(crate) allowed_origins: AllowedOrigins,
+    pub(crate) allowed_origins: AllOrSome<HashSet<url::Origin>>,
     pub(crate) allowed_methods: AllowedMethods,
     pub(crate) allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
     pub(crate) allow_credentials: bool,
@@ -859,8 +857,11 @@ impl Cors {
     /// Create a `Cors` struct from a [`CorsOptions`]
     pub fn from_options(options: &CorsOptions) -> Result<Self, Error> {
         options.validate()?;
+
+        let allowed_origins = parse_origins(&options.allowed_origins)?;
+
         Ok(Cors {
-            allowed_origins: options.allowed_origins.clone(),
+            allowed_origins,
             allowed_methods: options.allowed_methods.clone(),
             allowed_headers: options.allowed_headers.clone(),
             allow_credentials: options.allow_credentials,
@@ -929,7 +930,7 @@ impl Cors {
 /// You can get this struct by using `Cors::validate_request` in an ad-hoc manner.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) struct Response {
-    allow_origin: Option<AllOrSome<Url>>,
+    allow_origin: Option<AllOrSome<url::Origin>>,
     allow_methods: HashSet<Method>,
     allow_headers: HeaderFieldNamesSet,
     allow_credentials: bool,
@@ -953,7 +954,7 @@ impl Response {
     }
 
     /// Consumes the `Response` and return an altered response with origin and `vary_origin` set
-    fn origin(mut self, origin: &Url, vary_origin: bool) -> Self {
+    fn origin(mut self, origin: &url::Origin, vary_origin: bool) -> Self {
         self.allow_origin = Some(AllOrSome::Some(origin.clone()));
         self.vary_origin = vary_origin;
         self
@@ -1028,11 +1029,9 @@ impl Response {
             Some(ref origin) => origin,
         };
 
-        // Origin should be ASCII serialized
-        // c.f. https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
         let origin = match *origin {
             AllOrSome::All => "*".to_string(),
-            AllOrSome::Some(ref origin) => origin.origin().ascii_serialization(),
+            AllOrSome::Some(ref origin) => origin.ascii_serialization(),
         };
 
         let _ = response.set_raw_header("Access-Control-Allow-Origin", origin);
@@ -1261,11 +1260,29 @@ enum ValidationResult {
     None,
     /// Successful preflight request
     Preflight {
-        origin: Origin,
+        origin: url::Origin,
         headers: Option<AccessControlRequestHeaders>,
     },
     /// Successful actual request
-    Request { origin: Origin },
+    Request { origin: url::Origin },
+}
+
+/// Convert a str to Origin
+fn to_origin<S: AsRef<str>>(origin: S) -> Result<url::Origin, Error> {
+    // What to do about Opaque origins?
+    Ok(url::Url::parse(origin.as_ref())?.origin())
+}
+
+/// Parse and process allowed origins
+fn parse_origins(origins: &AllowedOrigins) -> Result<AllOrSome<HashSet<url::Origin>>, Error> {
+    match origins {
+        AllOrSome::All => Ok(AllOrSome::All),
+        AllOrSome::Some(ref origins) => {
+            let parsed: Result<HashSet<url::Origin>, Error> =
+                origins.iter().map(to_origin).collect();
+            Ok(AllOrSome::Some(parsed?))
+        }
+    }
 }
 
 /// Validates a request for CORS and returns a CORS Response
@@ -1291,7 +1308,7 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
             // Not a CORS request
             return Ok(ValidationResult::None);
         }
-        Some(origin) => origin,
+        Some(origin) => to_origin(origin)?,
     };
 
     // Check if the request verb is an OPTION or something else
@@ -1313,8 +1330,8 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
 /// check if the requested origin is allowed.
 /// Useful for pre-flight and during requests
 fn validate_origin(
-    origin: &Origin,
-    allowed_origins: &AllowedOrigins,
+    origin: &url::Origin,
+    allowed_origins: &AllOrSome<HashSet<url::Origin>>,
 ) -> Result<(), Error> {
     match *allowed_origins {
         // Always matching is acceptable since the list of origins can be unbounded.
@@ -1322,7 +1339,7 @@ fn validate_origin(
         AllOrSome::Some(ref allowed_origins) => allowed_origins
             .get(origin)
             .and_then(|_| Some(()))
-            .ok_or_else(|| Error::OriginNotAllowed(origin.to_string())),
+            .ok_or_else(|| Error::OriginNotAllowed(origin.clone())),
     }
 }
 
@@ -1392,7 +1409,7 @@ fn request_headers(request: &Request<'_>) -> Result<Option<AccessControlRequestH
 /// and [Fetch specification](https://fetch.spec.whatwg.org/#cors-preflight-fetch)
 fn preflight_validate(
     options: &Cors,
-    origin: &Origin,
+    origin: &url::Origin,
     method: &Option<AccessControlRequestMethod>,
     headers: &Option<AccessControlRequestHeaders>,
 ) -> Result<(), Error> {
@@ -1440,7 +1457,7 @@ fn preflight_validate(
 /// and [Fetch specification](https://fetch.spec.whatwg.org/#cors-preflight-fetch).
 fn preflight_response(
     options: &Cors,
-    origin: &Origin,
+    origin: &url::Origin,
     headers: Option<&AccessControlRequestHeaders>,
 ) -> Response {
     let response = Response::new();
@@ -1511,7 +1528,7 @@ fn preflight_response(
 /// This implementation references the
 /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-requests)
 /// and [Fetch specification](https://fetch.spec.whatwg.org/#cors-preflight-fetch).
-fn actual_request_validate(options: &Cors, origin: &Origin) -> Result<(), Error> {
+fn actual_request_validate(options: &Cors, origin: &url::Origin) -> Result<(), Error> {
     // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
 
     // 2. If the value of the Origin header is not a case-sensitive match for any of the values
@@ -1528,7 +1545,7 @@ fn actual_request_validate(options: &Cors, origin: &Origin) -> Result<(), Error>
 /// This implementation references the
 /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-requests)
 /// and [Fetch specification](https://fetch.spec.whatwg.org/#cors-preflight-fetch)
-fn actual_request_response(options: &Cors, origin: &Origin) -> Response {
+fn actual_request_response(options: &Cors, origin: &url::Origin) -> Response {
     let response = Response::new();
 
     // 3. If the resource supports credentials add a single Access-Control-Allow-Origin header,
@@ -1628,8 +1645,7 @@ mod tests {
     use crate::http::Method;
 
     fn make_cors_options() -> CorsOptions {
-        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-        assert!(failed_origins.is_empty());
+        let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 
         CorsOptions {
             allowed_origins,
@@ -1689,7 +1705,8 @@ mod tests {
     #[test]
     fn validate_origin_allows_all_origins() {
         let url = "https://www.example.com";
-        let origin = Origin::from_str(url).unwrap();
+        let Ok(origin) = Origin::from_str(url);
+        let origin = not_err!(to_origin(&origin));
         let allowed_origins = AllOrSome::All;
 
         not_err!(validate_origin(&origin, &allowed_origins));
@@ -1698,9 +1715,11 @@ mod tests {
     #[test]
     fn validate_origin_allows_origin() {
         let url = "https://www.example.com";
-        let origin = Origin::from_str(url).unwrap();
-        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
-        assert!(failed_origins.is_empty());
+        let Ok(origin) = Origin::from_str(url);
+        let origin = not_err!(to_origin(&origin));
+        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(&[
+            "https://www.example.com"
+        ])));
 
         not_err!(validate_origin(&origin, &allowed_origins));
     }
@@ -1709,9 +1728,11 @@ mod tests {
     #[should_panic(expected = "OriginNotAllowed")]
     fn validate_origin_rejects_invalid_origin() {
         let url = "https://www.acme.com";
-        let origin = Origin::from_str(url).unwrap();
-        let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.example.com"]);
-        assert!(failed_origins.is_empty());
+        let Ok(origin) = Origin::from_str(url);
+        let origin = not_err!(to_origin(&origin));
+        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(&[
+            "https://www.example.com"
+        ])));
 
         validate_origin(&origin, &allowed_origins).unwrap();
     }
@@ -1719,10 +1740,7 @@ mod tests {
     #[test]
     fn response_sets_allow_origin_without_vary_correctly() {
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), false);
 
         // Build response and check built response header
         let expected_header = vec!["https://www.example.com"];
@@ -1739,8 +1757,7 @@ mod tests {
     #[test]
     fn response_sets_allow_origin_with_vary_correctly() {
         let response = Response::new();
-        let response =
-            response.origin(&FromStr::from_str("https://www.example.com").unwrap(), true);
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), true);
 
         // Build response and check built response header
         let expected_header = vec!["https://www.example.com"];
@@ -1770,9 +1787,10 @@ mod tests {
     #[test]
     fn response_sets_allow_origin_with_ascii_serialization() {
         let response = Response::new();
-        let response = response.origin(&FromStr::from_str("https://аpple.com").unwrap(), false);
+        let response = response.origin(&to_origin("https://аpple.com").unwrap(), false);
 
         // Build response and check built response header
+        // This is "punycode"
         let expected_header = vec!["https://xn--pple-43d.com"];
         let response = response.response(response::Response::new());
         let actual_header: Vec<_> = response
@@ -1786,10 +1804,7 @@ mod tests {
     fn response_sets_exposed_headers_correctly() {
         let headers = vec!["Bar", "Baz", "Foo"];
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), false);
         let response = response.exposed_headers(&headers);
 
         // Build response and check built response header
@@ -1811,10 +1826,7 @@ mod tests {
     #[test]
     fn response_sets_max_age_correctly() {
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), false);
 
         let response = response.max_age(Some(42));
 
@@ -1828,10 +1840,7 @@ mod tests {
     #[test]
     fn response_does_not_set_max_age_when_none() {
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), false);
 
         let response = response.max_age(None);
 
@@ -1944,10 +1953,7 @@ mod tests {
             .finalize();
 
         let response = Response::new();
-        let response = response.origin(
-            &FromStr::from_str("https://www.example.com").unwrap(),
-            false,
-        );
+        let response = response.origin(&to_origin("https://www.example.com").unwrap(), false);
         let response = response.response(original);
         // Check CORS header
         let expected_header = vec!["https://www.example.com"];
@@ -2023,7 +2029,7 @@ mod tests {
 
         let result = validate(&cors, request.inner()).expect("to not fail");
         let expected_result = ValidationResult::Preflight {
-            origin: FromStr::from_str("https://www.acme.com").unwrap(),
+            origin: to_origin("https://www.acme.com").unwrap(),
             // Checks that only a subset of allowed headers are returned
             // -- i.e. whatever is requested for
             headers: Some(FromStr::from_str("Authorization").unwrap()),
@@ -2058,7 +2064,7 @@ mod tests {
 
         let result = validate(&cors, request.inner()).expect("to not fail");
         let expected_result = ValidationResult::Preflight {
-            origin: FromStr::from_str("https://www.example.com").unwrap(),
+            origin: to_origin("https://www.example.com").unwrap(),
             headers: Some(FromStr::from_str("Authorization").unwrap()),
         };
 
@@ -2176,7 +2182,7 @@ mod tests {
 
         let result = validate(&cors, request.inner()).expect("to not fail");
         let expected_result = ValidationResult::Request {
-            origin: FromStr::from_str("https://www.acme.com").unwrap(),
+            origin: to_origin("https://www.acme.com").unwrap(),
         };
 
         assert_eq!(expected_result, result);
@@ -2195,7 +2201,7 @@ mod tests {
 
         let result = validate(&cors, request.inner()).expect("to not fail");
         let expected_result = ValidationResult::Request {
-            origin: FromStr::from_str("https://www.example.com").unwrap(),
+            origin: to_origin("https://www.example.com").unwrap(),
         };
 
         assert_eq!(expected_result, result);
@@ -2251,7 +2257,7 @@ mod tests {
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
 
         let expected_response = Response::new()
-            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), false)
+            .origin(&to_origin("https://www.acme.com").unwrap(), false)
             .headers(&["Authorization"])
             .methods(&options.allowed_methods)
             .credentials(options.allow_credentials)
@@ -2291,7 +2297,7 @@ mod tests {
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
 
         let expected_response = Response::new()
-            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), true)
+            .origin(&to_origin("https://www.acme.com").unwrap(), true)
             .headers(&["Authorization"])
             .methods(&options.allowed_methods)
             .credentials(options.allow_credentials)
@@ -2352,7 +2358,7 @@ mod tests {
 
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
         let expected_response = Response::new()
-            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), false)
+            .origin(&to_origin("https://www.acme.com").unwrap(), false)
             .credentials(options.allow_credentials)
             .exposed_headers(&["Content-Type", "X-Custom"]);
 
@@ -2375,7 +2381,7 @@ mod tests {
 
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
         let expected_response = Response::new()
-            .origin(&FromStr::from_str("https://www.acme.com/").unwrap(), true)
+            .origin(&to_origin("https://www.acme.com").unwrap(), true)
             .credentials(options.allow_credentials)
             .exposed_headers(&["Content-Type", "X-Custom"]);
 

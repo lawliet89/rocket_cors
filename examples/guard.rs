@@ -36,8 +36,7 @@ fn manual(cors: Guard<'_>) -> Responder<'_, &str> {
 }
 
 fn main() -> Result<(), Error> {
-    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-    assert!(failed_origins.is_empty());
+    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {

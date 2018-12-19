@@ -55,7 +55,7 @@ fn request_headers_round_trip_smoke_test() {
         .body()
         .and_then(|body| body.into_string())
         .expect("Non-empty body");
-    let expected_body = r#"https://foo.bar.xyz/
+    let expected_body = r#"https://foo.bar.xyz
 GET
 X-Ping, accept-language"#;
     assert_eq!(expected_body, body_str);
