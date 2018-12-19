@@ -962,7 +962,7 @@ impl Response {
     /// Consumes the CORS, set expose_headers to
     /// passed headers and returns changed CORS
     fn exposed_headers(mut self, headers: &[&str]) -> Self {
-        self.expose_headers = headers.into_iter().map(|s| s.to_string().into()).collect();
+        self.expose_headers = headers.iter().map(|s| s.to_string().into()).collect();
         self
     }
 
@@ -983,7 +983,7 @@ impl Response {
     /// Consumes the CORS, set allow_headers to
     /// passed headers and returns changed CORS
     fn headers(mut self, headers: &[&str]) -> Self {
-        self.allow_headers = headers.into_iter().map(|s| s.to_string().into()).collect();
+        self.allow_headers = headers.iter().map(|s| s.to_string().into()).collect();
         self
     }
 
@@ -1624,7 +1624,7 @@ mod tests {
         assert!(failed_origins.is_empty());
 
         CorsOptions {
-            allowed_origins: allowed_origins,
+            allowed_origins,
             allowed_methods: vec![http::Method::Get]
                 .into_iter()
                 .map(From::from)

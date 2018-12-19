@@ -58,7 +58,7 @@ fn on_response_wrapper(
 
     let result = request.local_cache(|| unreachable!("This should not be executed so late"));
 
-    if let &CorsValidation::Failure = result {
+    if let CorsValidation::Failure = *result {
         // Nothing else for us to do
         return Ok(());
     }
@@ -144,7 +144,7 @@ mod tests {
         assert!(failed_origins.is_empty());
 
         CorsOptions {
-            allowed_origins: allowed_origins,
+            allowed_origins,
             allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
