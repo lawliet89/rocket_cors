@@ -526,7 +526,7 @@ mod method_serde {
 /// let (some_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
 /// assert!(failed_origins.is_empty());
 /// ```
-pub type AllowedOrigins = AllOrSome<HashSet<Url>>;
+pub type AllowedOrigins = AllOrSome<HashSet<Origin>>;
 
 impl AllowedOrigins {
     /// Allows some origins
@@ -842,22 +842,34 @@ impl CorsOptions {
 /// documentation at the [crate root](index.html) for usage information.
 ///
 /// This struct can be created by using [`CorsOptions::to_cors`] or [`Cors::from_options`].
-#[derive(Clone, Debug)]
-pub struct Cors(CorsOptions);
-
-impl Deref for Cors {
-    type Target = CorsOptions;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Cors {
+    pub(crate) allowed_origins: AllowedOrigins,
+    pub(crate) allowed_methods: AllowedMethods,
+    pub(crate) allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
+    pub(crate) allow_credentials: bool,
+    pub(crate) expose_headers: HashSet<String>,
+    pub(crate) max_age: Option<usize>,
+    pub(crate) send_wildcard: bool,
+    pub(crate) fairing_route_base: String,
+    pub(crate) fairing_route_rank: isize,
 }
 
 impl Cors {
     /// Create a `Cors` struct from a [`CorsOptions`]
     pub fn from_options(options: &CorsOptions) -> Result<Self, Error> {
         options.validate()?;
-        Ok(Cors(options.clone()))
+        Ok(Cors {
+            allowed_origins: options.allowed_origins.clone(),
+            allowed_methods: options.allowed_methods.clone(),
+            allowed_headers: options.allowed_headers.clone(),
+            allow_credentials: options.allow_credentials,
+            expose_headers: options.expose_headers.clone(),
+            max_age: options.max_age,
+            send_wildcard: options.send_wildcard,
+            fairing_route_base: options.fairing_route_base.clone(),
+            fairing_route_rank: options.fairing_route_rank,
+        })
     }
 
     /// Manually respond to a request with CORS checks and headers using an Owned `Cors`.
@@ -1384,8 +1396,6 @@ fn preflight_validate(
     method: &Option<AccessControlRequestMethod>,
     headers: &Option<AccessControlRequestHeaders>,
 ) -> Result<(), Error> {
-    options.validate()?; // Fast-forward check for #7
-
     // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
 
     // 2. If the value of the Origin header is not a case-sensitive match for any of the values
@@ -1502,8 +1512,6 @@ fn preflight_response(
 /// [W3C recommendation](https://www.w3.org/TR/cors/#resource-requests)
 /// and [Fetch specification](https://fetch.spec.whatwg.org/#cors-preflight-fetch).
 fn actual_request_validate(options: &Cors, origin: &Origin) -> Result<(), Error> {
-    options.validate()?;
-
     // Note: All header parse failures are dealt with in the `FromRequest` trait implementation
 
     // 2. If the value of the Origin header is not a case-sensitive match for any of the values
