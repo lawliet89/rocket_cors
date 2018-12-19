@@ -714,7 +714,7 @@ pub struct CorsOptions {
     ///
     /// Defaults to `All`.
     #[cfg_attr(feature = "serialization", serde(default))]
-    pub allowed_headers: AllOrSome<HashSet<HeaderFieldName>>,
+    pub allowed_headers: AllowedHeaders,
     /// Allows users to make authenticated requests.
     /// If true, injects the `Access-Control-Allow-Credentials` header in responses.
     /// This allows cookies and credentials to be submitted across domains.
@@ -1314,7 +1314,7 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
 /// Useful for pre-flight and during requests
 fn validate_origin(
     origin: &Origin,
-    allowed_origins: &AllOrSome<HashSet<Url>>,
+    allowed_origins: &AllowedOrigins,
 ) -> Result<(), Error> {
     match *allowed_origins {
         // Always matching is acceptable since the list of origins can be unbounded.
@@ -1329,7 +1329,7 @@ fn validate_origin(
 /// Validate allowed methods
 fn validate_allowed_method(
     method: &AccessControlRequestMethod,
-    allowed_methods: &HashSet<Method>,
+    allowed_methods: &AllowedMethods,
 ) -> Result<(), Error> {
     let &AccessControlRequestMethod(ref request_method) = method;
     if !allowed_methods.iter().any(|m| m == request_method) {
@@ -1343,7 +1343,7 @@ fn validate_allowed_method(
 /// Validate allowed headers
 fn validate_allowed_headers(
     headers: &AccessControlRequestHeaders,
-    allowed_headers: &AllOrSome<HashSet<HeaderFieldName>>,
+    allowed_headers: &AllowedHeaders,
 ) -> Result<(), Error> {
     let &AccessControlRequestHeaders(ref headers) = headers;
 
