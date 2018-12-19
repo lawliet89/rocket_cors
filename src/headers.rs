@@ -216,7 +216,10 @@ mod tests {
         let outcome: request::Outcome<Origin, crate::Error> =
             FromRequest::from_request(request.inner());
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
-        assert_eq!("https://www.example.com", parsed_header.ascii_serialization());
+        assert_eq!(
+            "https://www.example.com",
+            parsed_header.ascii_serialization()
+        );
     }
 
     #[test]

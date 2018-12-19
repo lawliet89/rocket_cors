@@ -1673,6 +1673,39 @@ mod tests {
         Client::new(rocket).expect("valid rocket instance")
     }
 
+    // `to_origin` tests
+
+    #[test]
+    fn origin_is_parsed_properly() {
+        let url = "https://foo.bar.xyz";
+        let parsed = not_err!(Origin::from_str(url));
+        assert_eq!(parsed.ascii_serialization(), url);
+    }
+
+    #[test]
+    fn origin_parsing_strips_paths() {
+        // this should never really be sent by a compliant user agent
+        let url = "https://foo.bar.xyz/path/somewhere";
+        let parsed = not_err!(Origin::from_str(url));
+        let expected = "https://foo.bar.xyz";
+        assert_eq!(parsed.ascii_serialization(), expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "BadOrigin")]
+    fn origin_parsing_disallows_invalid_origins() {
+        let url = "invalid_url";
+        let _ = Origin::from_str(url).unwrap();
+    }
+
+    #[test]
+    fn origin_parses_opaque_origins() {
+        let url = "blob://foobar";
+        let parsed = not_err!(Origin::from_str(url));
+
+        assert!(!parsed.is_tuple());
+    }
+
     // CORS options test
 
     #[test]
@@ -1716,6 +1749,24 @@ mod tests {
         ])));
 
         not_err!(validate_origin(&origin, &allowed_origins));
+    }
+
+    #[test]
+    fn validate_origin_handles_punycode_properly() {
+        // Test a variety of scenarios where the Origin and settings are in punycode, or not
+        let cases = vec![
+            ("https://аpple.com", "https://аpple.com"),
+            ("https://аpple.com", "https://xn--pple-43d.com"),
+            ("https://xn--pple-43d.com", "https://аpple.com"),
+            ("https://xn--pple-43d.com", "https://xn--pple-43d.com"),
+        ];
+
+        for (url, allowed_origin) in cases {
+            let origin = not_err!(to_origin(&url));
+            let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(&[allowed_origin])));
+
+            not_err!(validate_origin(&origin, &allowed_origins));
+        }
     }
 
     #[test]
