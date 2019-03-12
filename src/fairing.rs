@@ -63,6 +63,7 @@ fn on_response_wrapper(
         return Ok(());
     }
 
+    let origin = origin.to_string();
     let cors_response = if request.method() == http::Method::Options {
         let headers = request_headers(request)?;
         preflight_response(options, &origin, headers.as_ref())

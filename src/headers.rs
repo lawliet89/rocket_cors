@@ -63,28 +63,34 @@ pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that `Origin` is passed in correctly.
+///
+/// Reference: [Mozilla](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin)
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
-pub struct Origin(pub url::Origin);
+pub enum Origin {
+    /// A `null` Origin
+    Null,
+    /// A well-formed origin that was parsed by [`url::Url::origin`]
+    Parsed(url::Origin),
+}
 
 impl FromStr for Origin {
     type Err = crate::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(Origin(crate::to_origin(input)?))
-    }
-}
-
-impl Deref for Origin {
-    type Target = url::Origin;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        if input.to_lowercase() == "null" {
+            Ok(Origin::Null)
+        } else {
+            Ok(Origin::Parsed(crate::to_origin(input)?))
+        }
     }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.ascii_serialization())
+        match self {
+            Origin::Null => write!(f, "null"),
+            Origin::Parsed(ref parsed) => write!(f, "{}", parsed.ascii_serialization()),
+        }
     }
 }
 
@@ -192,6 +198,10 @@ mod tests {
     #[test]
     fn origin_header_conversion() {
         let url = "https://foo.bar.xyz";
+        let parsed = not_err!(Origin::from_str(url));
+        assert_eq!(parsed.ascii_serialization(), url);
+
+        let url = "https://foo.bar.xyz:1234";
         let parsed = not_err!(Origin::from_str(url));
         assert_eq!(parsed.ascii_serialization(), url);
 
