@@ -59,8 +59,7 @@ fn owned_options<'r>() -> impl Responder<'r> {
 }
 
 fn cors_options() -> CorsOptions {
-    let (allowed_origins, failed_origins) = AllowedOrigins::some(&["https://www.acme.com"]);
-    assert!(failed_origins.is_empty());
+    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
 
     // You can also deserialize this
     rocket_cors::CorsOptions {

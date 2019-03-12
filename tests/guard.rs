@@ -60,8 +60,7 @@ fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Respo
 }
 
 fn make_cors() -> cors::Cors {
-    let (allowed_origins, failed_origins) = cors::AllowedOrigins::some(&["https://www.acme.com"]);
-    assert!(failed_origins.is_empty());
+    let allowed_origins = cors::AllowedOrigins::some(&["https://www.acme.com"]);
 
     cors::CorsOptions {
         allowed_origins: allowed_origins,

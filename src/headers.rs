@@ -11,12 +11,9 @@ use rocket::{self, Outcome};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 use unicase::UniCase;
-use url;
 
 #[cfg(feature = "serialization")]
 use unicase_serde;
-#[cfg(feature = "serialization")]
-use url_serde;
 
 /// A case insensitive header name
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]
@@ -62,54 +59,48 @@ impl FromStr for HeaderFieldName {
 /// A set of case insensitive header names
 pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 
-/// A wrapped `url::Url` to allow for deserialization
+/// The `Origin` request header used in CORS
+///
+/// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
+/// to ensure that `Origin` is passed in correctly.
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
-#[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-pub struct Url(#[cfg_attr(feature = "serialization", serde(with = "url_serde"))] url::Url);
+pub struct Origin(pub url::Origin);
 
-impl fmt::Display for Url {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+impl FromStr for Origin {
+    type Err = crate::Error;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        Ok(Origin(crate::to_origin(input)?))
     }
 }
 
-impl Deref for Url {
-    type Target = url::Url;
+impl Deref for Origin {
+    type Target = url::Origin;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl FromStr for Url {
-    type Err = url::ParseError;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let url = url::Url::from_str(input)?;
-        Ok(Url(url))
+impl fmt::Display for Origin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.ascii_serialization())
     }
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for Url {
+impl<'a, 'r> FromRequest<'a, 'r> for Origin {
     type Error = crate::Error;
 
     fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Origin") {
             Some(origin) => match Self::from_str(origin) {
                 Ok(origin) => Outcome::Success(origin),
-                Err(e) => Outcome::Failure((Status::BadRequest, crate::Error::BadOrigin(e))),
+                Err(e) => Outcome::Failure((Status::BadRequest, e)),
             },
             None => Outcome::Forward(()),
         }
     }
 }
-
-/// The `Origin` request header used in CORS
-///
-/// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
-/// to ensure that `Origin` is passed in correctly.
-pub type Origin = Url;
-
 /// The `Access-Control-Request-Method` request header
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
@@ -202,13 +193,13 @@ mod tests {
     fn origin_header_conversion() {
         let url = "https://foo.bar.xyz";
         let parsed = not_err!(Origin::from_str(url));
-        let expected = not_err!(Url::from_str(url));
-        assert_eq!(parsed, expected);
+        assert_eq!(parsed.ascii_serialization(), url);
 
-        let url = "https://foo.bar.xyz/path/somewhere"; // this should never really be used
+        // this should never really be sent by a compliant user agent
+        let url = "https://foo.bar.xyz/path/somewhere";
         let parsed = not_err!(Origin::from_str(url));
-        let expected = not_err!(Url::from_str(url));
-        assert_eq!(parsed, expected);
+        let expected = "https://foo.bar.xyz";
+        assert_eq!(parsed.ascii_serialization(), expected);
 
         let url = "invalid_url";
         let _ = is_err!(Origin::from_str(url));
@@ -225,7 +216,10 @@ mod tests {
         let outcome: request::Outcome<Origin, crate::Error> =
             FromRequest::from_request(request.inner());
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
-        assert_eq!("https://www.example.com/", parsed_header.as_str());
+        assert_eq!(
+            "https://www.example.com",
+            parsed_header.ascii_serialization()
+        );
     }
 
     #[test]
