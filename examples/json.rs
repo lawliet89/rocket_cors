@@ -16,7 +16,7 @@ fn main() {
     let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     let options = cors::CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get, Method::Post, Method::Delete]
             .into_iter()
             .map(From::from)

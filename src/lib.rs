@@ -727,9 +727,9 @@ impl AllowedHeaders {
 /// ```json
 /// {
 ///   "allowed_origins": {
-///     "Some": [
-///       "https://www.acme.com"
-///     ]
+///     "Some": {
+///         "exact": ["https://www.acme.com"]
+///     }
 ///   },
 ///   "allowed_methods": [
 ///     "POST",
@@ -1759,8 +1759,8 @@ mod tests {
             allowed_headers: AllowedHeaders::some(&[&"Authorization", "Accept"]),
             allow_credentials: true,
             expose_headers: ["Content-Type", "X-Custom"]
-                .into_iter()
-                .map(|s| s.to_string().into())
+                .iter()
+                .map(|s| s.to_string())
                 .collect(),
             ..Default::default()
         }

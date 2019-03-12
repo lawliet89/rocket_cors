@@ -266,7 +266,7 @@ mod tests {
         );
 
         let method = "INVALID";
-        let _ = is_err!(AccessControlRequestMethod::from_str(method));
+        is_err!(AccessControlRequestMethod::from_str(method));
     }
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         let AccessControlRequestHeaders(parsed_headers) = parsed_header;
         let mut parsed_headers: Vec<String> =
-            parsed_headers.iter().map(|s| s.to_string()).collect();
+            parsed_headers.iter().map(ToString::to_string).collect();
         parsed_headers.sort();
         assert_eq!(
             vec!["accept-language".to_string(), "date".to_string()],

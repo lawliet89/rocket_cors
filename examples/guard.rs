@@ -40,7 +40,7 @@ fn main() -> Result<(), Error> {
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
