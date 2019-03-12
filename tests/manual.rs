@@ -66,7 +66,7 @@ fn borrow<'r>(options: State<'r, Cors>, test_state: State<'r, TestState>) -> imp
 }
 
 fn make_cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     CorsOptions {
         allowed_origins: allowed_origins,
@@ -78,7 +78,7 @@ fn make_cors_options() -> CorsOptions {
 }
 
 fn make_different_cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.example.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.example.com"]);
 
     CorsOptions {
         allowed_origins: allowed_origins,

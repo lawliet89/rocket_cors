@@ -12,7 +12,7 @@ fn cors<'a>() -> &'a str {
 }
 
 fn main() -> Result<(), Error> {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {

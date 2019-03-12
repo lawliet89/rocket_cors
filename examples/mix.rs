@@ -36,7 +36,7 @@ fn ping_options<'r>() -> impl Responder<'r> {
 
 /// Returns the "application wide" Cors struct
 fn cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
     rocket_cors::CorsOptions {

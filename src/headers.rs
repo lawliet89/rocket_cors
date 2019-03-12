@@ -73,6 +73,23 @@ pub enum Origin {
     Parsed(url::Origin),
 }
 
+impl Origin {
+    /// Perform an
+    /// [ASCII serialization](https://html.spec.whatwg.org/multipage/#ascii-serialisation-of-an-origin)
+    /// of this origin.
+    pub fn ascii_serialization(&self) -> String {
+        self.to_string()
+    }
+
+    /// Returns whether the origin was parsed as non-opaque
+    pub fn is_tuple(&self) -> bool {
+        match self {
+            Origin::Null => false,
+            Origin::Parsed(ref parsed) => parsed.is_tuple(),
+        }
+    }
+}
+
 impl FromStr for Origin {
     type Err = crate::Error;
 

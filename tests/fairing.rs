@@ -22,7 +22,7 @@ fn panicking_route() {
 }
 
 fn make_cors() -> Cors {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     CorsOptions {
         allowed_origins: allowed_origins,
