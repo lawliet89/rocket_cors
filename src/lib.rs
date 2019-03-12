@@ -592,11 +592,10 @@ impl AllowedOrigins {
 
 /// Origins that are allowed to make CORS requests.
 ///
-/// An origin is defined according
-/// [syntax](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) defined here.
+/// An origin is defined according to the defined
+/// [syntax](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin).
 ///
-/// Origins can be specified as an exact match or via some other supported way according to the
-/// fields of the struct.
+/// Origins can be specified as an exact match or using regex.
 ///
 /// These Origins are specified as logical `ORs`. That is, if any of the origins match, the entire
 /// request is considered to be valid.
