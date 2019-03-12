@@ -7,10 +7,10 @@ use std::str::FromStr;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
+use rocket::response::Body;
 use rocket::response::Responder;
 use rocket::State;
 use rocket::{get, options, routes};
-use rocket::response::Body;
 use rocket_cors::*;
 
 /// Using a borrowed `Cors`

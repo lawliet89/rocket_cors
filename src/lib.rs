@@ -62,9 +62,9 @@ Each of the examples can be run off the repository via `cargo run --example xxx`
 
 ### `CorsOptions` Struct
 
-The [`CorsOptiopns`] struct contains the settings for CORS requests to be validated
+The [`CorsOptions`] struct contains the settings for CORS requests to be validated
 and for responses to be generated. Defaults are defined for every field in the struct, and
-are documented on the [`CorsOptiopns`] page. You can also deserialize
+are documented on the [`CorsOptions`] page. You can also deserialize
 the struct from some format like JSON, YAML or TOML when the default `serialization` feature
 is enabled.
 
@@ -594,15 +594,22 @@ pub struct Origins {
     /// Whether null origins are accepted
     #[cfg_attr(feature = "serialization", serde(default))]
     pub allow_null: bool,
-    /// Origins that must be matched exactly as below. These __must__ be valid URL strings that will
-    /// be parsed and validated when creating [`Cors`].
+    /// Origins that must be matched exactly as provided.
+    ///
+    /// These __must__ be valid URL strings that will be parsed and validated when
+    /// creating [`Cors`].
     #[cfg_attr(feature = "serialization", serde(default))]
     pub exact: Option<HashSet<String>>,
-    /// Origins that will be matched via __any__ regex in this list. These __must__ be valid Regex
-    /// that will be parsed and validated when creating [`Cors`].
+    /// Origins that will be matched via __any__ regex in this list.
+    ///
+    /// These __must__ be valid Regex that will be parsed and validated when creating [`Cors`].
+    ///
     /// The regex will be matched according to the
     /// [ASCII serialization](https://html.spec.whatwg.org/multipage/#ascii-serialisation-of-an-origin)
     /// of the incoming Origin.
+    ///
+    /// For more information on the syntax of Regex in Rust, see the
+    /// [documentation](https://docs.rs/regex).
     #[cfg_attr(feature = "serialization", serde(default))]
     pub regex: Option<HashSet<String>>,
 }
@@ -728,7 +735,8 @@ impl AllowedHeaders {
 /// {
 ///   "allowed_origins": {
 ///     "Some": {
-///         "exact": ["https://www.acme.com"]
+///         "exact": ["https://www.acme.com"],
+///         "regex": ["^https://www.example-[A-z0-9]*.com$"]
 ///     }
 ///   },
 ///   "allowed_methods": [
@@ -1834,6 +1842,64 @@ mod tests {
     fn cors_default_deserialization_is_correct() {
         let deserialized: CorsOptions = serde_json::from_str("{}").expect("To not fail");
         assert_eq!(deserialized, CorsOptions::default());
+
+        let expected_json = r#"
+{
+  "allowed_origins": "All",
+  "allowed_methods": [
+    "POST",
+    "PATCH",
+    "PUT",
+    "DELETE",
+    "HEAD",
+    "OPTIONS",
+    "GET"
+  ],
+  "allowed_headers": "All",
+  "allow_credentials": false,
+  "expose_headers": [],
+  "max_age": null,
+  "send_wildcard": false,
+  "fairing_route_base": "/cors",
+  "fairing_route_rank": 0
+}
+"#;
+        let actual: CorsOptions = serde_json::from_str(expected_json).expect("to not fail");
+        assert_eq!(actual, CorsOptions::default());
+    }
+
+    /// Checks that the example provided can actually be deserialized
+    #[cfg(feature = "serialization")]
+    #[test]
+    fn cors_options_example_can_be_deserialized() {
+        let json = r#"{
+  "allowed_origins": {
+    "Some": {
+        "exact": ["https://www.acme.com"],
+        "regex": ["^https://www.example-[A-z0-9]*.com$"]
+    }
+  },
+  "allowed_methods": [
+    "POST",
+    "DELETE",
+    "GET"
+  ],
+  "allowed_headers": {
+    "Some": [
+      "Accept",
+      "Authorization"
+    ]
+  },
+  "allow_credentials": true,
+  "expose_headers": [
+    "Content-Type",
+    "X-Custom"
+  ],
+  "max_age": 42,
+  "send_wildcard": false,
+  "fairing_route_base": "/mycors"
+}"#;
+        let _: CorsOptions = serde_json::from_str(json).expect("to not fail");
     }
 
     // The following tests check validation
