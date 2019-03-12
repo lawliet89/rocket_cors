@@ -590,7 +590,7 @@ impl AllowedOrigins {
     }
 }
 
-/// A list of allows origins
+/// Origins that are allowed to make CORS requests.
 ///
 /// An origin is defined according
 /// [syntax](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) defined here.
