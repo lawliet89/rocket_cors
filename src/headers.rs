@@ -63,28 +63,51 @@ pub type HeaderFieldNamesSet = HashSet<HeaderFieldName>;
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that `Origin` is passed in correctly.
+///
+/// Reference: [Mozilla](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin)
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
-pub struct Origin(pub url::Origin);
+pub enum Origin {
+    /// A `null` Origin
+    Null,
+    /// A well-formed origin that was parsed by [`url::Url::origin`]
+    Parsed(url::Origin),
+}
+
+impl Origin {
+    /// Perform an
+    /// [ASCII serialization](https://html.spec.whatwg.org/multipage/#ascii-serialisation-of-an-origin)
+    /// of this origin.
+    pub fn ascii_serialization(&self) -> String {
+        self.to_string()
+    }
+
+    /// Returns whether the origin was parsed as non-opaque
+    pub fn is_tuple(&self) -> bool {
+        match self {
+            Origin::Null => false,
+            Origin::Parsed(ref parsed) => parsed.is_tuple(),
+        }
+    }
+}
 
 impl FromStr for Origin {
     type Err = crate::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Ok(Origin(crate::to_origin(input)?))
-    }
-}
-
-impl Deref for Origin {
-    type Target = url::Origin;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        if input.to_lowercase() == "null" {
+            Ok(Origin::Null)
+        } else {
+            Ok(Origin::Parsed(crate::to_origin(input)?))
+        }
     }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.ascii_serialization())
+        match self {
+            Origin::Null => write!(f, "null"),
+            Origin::Parsed(ref parsed) => write!(f, "{}", parsed.ascii_serialization()),
+        }
     }
 }
 
@@ -195,6 +218,10 @@ mod tests {
         let parsed = not_err!(Origin::from_str(url));
         assert_eq!(parsed.ascii_serialization(), url);
 
+        let url = "https://foo.bar.xyz:1234";
+        let parsed = not_err!(Origin::from_str(url));
+        assert_eq!(parsed.ascii_serialization(), url);
+
         // this should never really be sent by a compliant user agent
         let url = "https://foo.bar.xyz/path/somewhere";
         let parsed = not_err!(Origin::from_str(url));
@@ -239,7 +266,7 @@ mod tests {
         );
 
         let method = "INVALID";
-        let _ = is_err!(AccessControlRequestMethod::from_str(method));
+        is_err!(AccessControlRequestMethod::from_str(method));
     }
 
     #[test]
@@ -281,7 +308,7 @@ mod tests {
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         let AccessControlRequestHeaders(parsed_headers) = parsed_header;
         let mut parsed_headers: Vec<String> =
-            parsed_headers.iter().map(|s| s.to_string()).collect();
+            parsed_headers.iter().map(ToString::to_string).collect();
         parsed_headers.sort();
         assert_eq!(
             vec!["accept-language".to_string(), "date".to_string()],

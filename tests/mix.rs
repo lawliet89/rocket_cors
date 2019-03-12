@@ -4,15 +4,15 @@
 //! `ping` route that you want to allow all Origins to access.
 #![feature(proc_macro_hygiene, decl_macro)]
 use hyper;
-#[macro_use]
-extern crate rocket;
 use rocket_cors;
 
 use std::str::FromStr;
 
 use rocket::http::{Header, Method, Status};
 use rocket::local::Client;
+use rocket::response::Body;
 use rocket::response::Responder;
+use rocket::{get, options, routes};
 
 use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions, Guard};
 
@@ -40,11 +40,11 @@ fn ping_options<'r>() -> impl Responder<'r> {
 
 /// Returns the "application wide" Cors struct
 fn cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
     rocket_cors::CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
@@ -100,7 +100,7 @@ fn smoke_test() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS!".to_string()));
 
     let origin_header = response
@@ -151,7 +151,7 @@ fn cors_get_check() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS!".to_string()));
 
     let origin_header = response
@@ -171,7 +171,7 @@ fn cors_get_no_origin() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS!".to_string()));
 }
 
@@ -333,7 +333,7 @@ fn cors_get_ping_check() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Pong!".to_string()));
 
     let origin_header = response

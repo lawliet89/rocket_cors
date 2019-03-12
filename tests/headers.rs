@@ -1,14 +1,14 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
 #![feature(proc_macro_hygiene, decl_macro)]
 use hyper;
-#[macro_use]
-extern crate rocket;
 
 use std::ops::Deref;
 use std::str::FromStr;
 
 use rocket::http::Header;
 use rocket::local::Client;
+use rocket::response::Body;
+use rocket::{get, routes};
 use rocket_cors::headers::*;
 
 #[get("/request_headers")]
@@ -53,7 +53,7 @@ fn request_headers_round_trip_smoke_test() {
     assert!(response.status().class().is_success());
     let body_str = response
         .body()
-        .and_then(|body| body.into_string())
+        .and_then(Body::into_string)
         .expect("Non-empty body");
     let expected_body = r#"https://foo.bar.xyz
 GET

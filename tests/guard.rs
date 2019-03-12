@@ -1,8 +1,6 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
 #![feature(proc_macro_hygiene, decl_macro)]
 use hyper;
-#[macro_use]
-extern crate rocket;
 use rocket_cors as cors;
 
 use std::str::FromStr;
@@ -10,6 +8,8 @@ use std::str::FromStr;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
+use rocket::response::Body;
+use rocket::{get, options, routes};
 use rocket::{Response, State};
 
 #[get("/")]
@@ -60,10 +60,10 @@ fn state<'r>(cors: cors::Guard<'r>, _state: State<'r, SomeState>) -> cors::Respo
 }
 
 fn make_cors() -> cors::Cors {
-    let allowed_origins = cors::AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = cors::AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     cors::CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: cors::AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
@@ -119,7 +119,7 @@ fn smoke_test() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
     let origin_header = response
@@ -205,7 +205,7 @@ fn cors_get_check() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
     let origin_header = response
@@ -226,7 +226,7 @@ fn cors_get_no_origin() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
     assert!(response
         .headers()
@@ -408,7 +408,7 @@ fn overridden_options_routes_are_used() {
         .header(request_headers);
 
     let mut response = req.dispatch();
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert!(response.status().class().is_success());
     assert_eq!(body_str, Some("Manual CORS Preflight".to_string()));
 

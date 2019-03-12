@@ -36,11 +36,11 @@ fn manual(cors: Guard<'_>) -> Responder<'_, &str> {
 }
 
 fn main() -> Result<(), Error> {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,

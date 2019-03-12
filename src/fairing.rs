@@ -63,6 +63,7 @@ fn on_response_wrapper(
         return Ok(());
     }
 
+    let origin = origin.to_string();
     let cors_response = if request.method() == http::Method::Options {
         let headers = request_headers(request)?;
         preflight_response(options, &origin, headers.as_ref())
@@ -137,10 +138,10 @@ mod tests {
 
     use crate::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
 
-    const CORS_ROOT: &'static str = "/my_cors";
+    const CORS_ROOT: &str = "/my_cors";
 
     fn make_cors_options() -> Cors {
-        let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+        let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
         CorsOptions {
             allowed_origins,

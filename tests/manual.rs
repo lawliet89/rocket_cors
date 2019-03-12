@@ -1,16 +1,16 @@
 //! This crate tests using `rocket_cors` using manual mode
 #![feature(proc_macro_hygiene, decl_macro)]
 use hyper;
-#[macro_use]
-extern crate rocket;
 
 use std::str::FromStr;
 
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
+use rocket::response::Body;
 use rocket::response::Responder;
 use rocket::State;
+use rocket::{get, options, routes};
 use rocket_cors::*;
 
 /// Using a borrowed `Cors`
@@ -23,7 +23,7 @@ fn cors(options: State<'_, Cors>) -> impl Responder<'_> {
 
 #[get("/panic")]
 fn panicking_route(options: State<'_, Cors>) -> impl Responder<'_> {
-    options.inner().respond_borrowed(|_| -> () {
+    options.inner().respond_borrowed(|_| {
         panic!("This route will panic");
     })
 }
@@ -66,10 +66,10 @@ fn borrow<'r>(options: State<'r, Cors>, test_state: State<'r, TestState>) -> imp
 }
 
 fn make_cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.acme.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
@@ -78,10 +78,10 @@ fn make_cors_options() -> CorsOptions {
 }
 
 fn make_different_cors_options() -> CorsOptions {
-    let allowed_origins = AllowedOrigins::some(&["https://www.example.com"]);
+    let allowed_origins = AllowedOrigins::some_exact(&["https://www.example.com"]);
 
     CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec![Method::Get].into_iter().map(From::from).collect(),
         allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
         allow_credentials: true,
@@ -129,7 +129,7 @@ fn smoke_test() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
     let origin_header = response
@@ -180,7 +180,7 @@ fn cors_get_borrowed_check() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 
     let origin_header = response
@@ -200,7 +200,7 @@ fn cors_get_no_origin() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS".to_string()));
 }
 
@@ -378,7 +378,7 @@ fn cors_options_owned_check() {
         .header(request_headers);
 
     let mut response = req.dispatch();
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert!(response.status().class().is_success());
     assert_eq!(body_str, Some("Manual CORS Preflight".to_string()));
 
@@ -404,7 +404,7 @@ fn cors_get_owned_check() {
 
     let mut response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(|body| body.into_string());
+    let body_str = response.body().and_then(Body::into_string);
     assert_eq!(body_str, Some("Hello CORS Owned".to_string()));
 
     let origin_header = response
