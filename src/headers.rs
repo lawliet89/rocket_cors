@@ -71,6 +71,8 @@ pub enum Origin {
     Null,
     /// A well-formed origin that was parsed by [`url::Url::origin`]
     Parsed(url::Origin),
+    /// An unknown "opaque" origin that could not be parsed
+    Opaque(String),
 }
 
 impl Origin {
@@ -86,6 +88,7 @@ impl Origin {
         match self {
             Origin::Null => false,
             Origin::Parsed(ref parsed) => parsed.is_tuple(),
+            Origin::Opaque(_) => false,
         }
     }
 }
@@ -97,7 +100,10 @@ impl FromStr for Origin {
         if input.to_lowercase() == "null" {
             Ok(Origin::Null)
         } else {
-            Ok(Origin::Parsed(crate::to_origin(input)?))
+            match crate::to_origin(input)? {
+                url::Origin::Opaque(_) => Ok(Origin::Opaque(input.to_string())),
+                parsed @ url::Origin::Tuple(..) => Ok(Origin::Parsed(parsed)),
+            }
         }
     }
 }
@@ -107,6 +113,7 @@ impl fmt::Display for Origin {
         match self {
             Origin::Null => write!(f, "null"),
             Origin::Parsed(ref parsed) => write!(f, "{}", parsed.ascii_serialization()),
+            Origin::Opaque(ref opaque) => write!(f, "{}", opaque),
         }
     }
 }

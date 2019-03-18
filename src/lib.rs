@@ -282,12 +282,12 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use ::log::{error, info, log};
+use ::log::{debug, error, info, log};
 use regex::RegexSet;
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{error_, info_, log_, Outcome, State};
+use rocket::{debug_, error_, info_, log_, Outcome, State};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -356,33 +356,55 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::MissingOrigin => write!(f, "The request header `Origin` is required but is missing"),
+            Error::MissingOrigin => write!(
+                f,
+                "The request header `Origin` is \
+                 required but is missing"
+            ),
             Error::BadOrigin(_) => write!(f, "The request header `Origin` contains an invalid URL"),
-            Error::MissingRequestMethod => { write!(f,
+            Error::MissingRequestMethod => write!(
+                f,
                 "The request header `Access-Control-Request-Method` \
-                 is required but is missing")
-            }
-            Error::BadRequestMethod => { write!(f,
-                "The request header `Access-Control-Request-Method` has an invalid value")
-            }
-            Error::MissingRequestHeaders => { write!(f,
+                 is required but is missing"
+            ),
+            Error::BadRequestMethod => write!(
+                f,
+                "The request header `Access-Control-Request-Method` has an invalid value"
+            ),
+            Error::MissingRequestHeaders => write!(
+                f,
                 "The request header `Access-Control-Request-Headers` \
-                 is required but is missing")
-            }
-            Error::OriginNotAllowed(origin) => write!(f, "Origin '{}' is not allowed to request", origin),
+                 is required but is missing"
+            ),
+            Error::OriginNotAllowed(origin) => write!(
+                f,
+                "Origin '{}' is \
+                 not allowed to request",
+                origin
+            ),
             Error::MethodNotAllowed(method) => write!(f, "Method '{}' is not allowed", &method),
             Error::HeadersNotAllowed => write!(f, "Headers are not allowed"),
-            Error::CredentialsWithWildcardOrigin => { write!(f,
+            Error::CredentialsWithWildcardOrigin => write!(
+                f,
                 "Credentials are allowed, but the Origin is set to \"*\". \
-                 This is not allowed by W3C")
-            }
-            Error::MissingCorsInRocketState => { write!(f,
-                "A CORS Request Guard was used, but no CORS Options was available in Rocket's state")
-            }
-            Error::MissingInjectedHeader => write!(f,
+                 This is not allowed by W3C"
+            ),
+            Error::MissingCorsInRocketState => write!(
+                f,
+                "A CORS Request Guard was used, but no CORS Options \
+                 was available in Rocket's state"
+            ),
+            Error::MissingInjectedHeader => {
+                write!(f,
                 "The `on_response` handler of Fairing could not find the injected header from the \
-                 Request. Either some other fairing has removed it, or this is a bug."),
-            Error::OpaqueAllowedOrigin(ref origin) => write!(f, "The configured Origin '{}' not have a parsable Origin. Use a regex instead.", origin),
+                 Request. Either some other fairing has removed it, or this is a bug.")
+            }
+            Error::OpaqueAllowedOrigin(ref origin) => write!(
+                f,
+                "The configured Origin '{}' does \
+                 not have a parsable Origin. Use a regex instead.",
+                origin
+            ),
             Error::RegexError(ref e) => write!(f, "{}", e),
         }
     }
@@ -550,7 +572,7 @@ impl AllowedOrigins {
     /// Allows some origins
     ///
     /// Validation is not performed at this stage, but at a later stage.
-    pub fn some<S1: AsRef<str>, S2: AsRef<str>>(exact: &[S1], regex: &[S2]) -> Self {
+    pub fn some<'a, 'b, S1: AsRef<str>, S2: AsRef<str>>(exact: &'a [S1], regex: &'b [S2]) -> Self {
         AllOrSome::Some(Origins {
             exact: Some(exact.iter().map(|s| s.as_ref().to_string()).collect()),
             regex: Some(regex.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -664,13 +686,16 @@ impl ParsedAllowedOrigins {
     }
 
     fn verify(&self, origin: &Origin) -> bool {
-        info_!("Verifying origin: {}", origin);
         match origin {
             Origin::Null => {
                 info_!("Origin is null. Allowing? {}", self.allow_null);
                 self.allow_null
             }
             Origin::Parsed(ref parsed) => {
+                assert!(
+                    parsed.is_tuple(),
+                    "Parsed Origin is not tuple. This is a bug. Please report"
+                );
                 // Verify by exact, then regex
                 if self.exact.get(parsed).is_some() {
                     info_!("Origin has an exact match");
@@ -678,6 +703,18 @@ impl ParsedAllowedOrigins {
                 }
                 if let Some(regex_set) = &self.regex {
                     let regex_match = regex_set.is_match(&parsed.ascii_serialization());
+                    debug_!("Matching against regex set {:#?}", regex_set);
+                    info_!("Origin has a regex match? {}", regex_match);
+                    return regex_match;
+                }
+
+                info!("Origin does not match anything");
+                false
+            }
+            Origin::Opaque(ref opaque) => {
+                if let Some(regex_set) = &self.regex {
+                    let regex_match = regex_set.is_match(opaque);
+                    debug_!("Matching against regex set {:#?}", regex_set);
                     info_!("Origin has a regex match? {}", regex_match);
                     return regex_match;
                 }
@@ -992,7 +1029,7 @@ impl Cors {
     pub fn from_options(options: &CorsOptions) -> Result<Self, Error> {
         options.validate()?;
 
-        let allowed_origins = parse_origins(&options.allowed_origins)?;
+        let allowed_origins = parse_allowed_origins(&options.allowed_origins)?;
 
         Ok(Cors {
             allowed_origins,
@@ -1407,7 +1444,9 @@ fn to_origin<S: AsRef<str>>(origin: S) -> Result<url::Origin, Error> {
 }
 
 /// Parse and process allowed origins
-fn parse_origins(origins: &AllowedOrigins) -> Result<AllOrSome<ParsedAllowedOrigins>, Error> {
+fn parse_allowed_origins(
+    origins: &AllowedOrigins,
+) -> Result<AllOrSome<ParsedAllowedOrigins>, Error> {
     match origins {
         AllOrSome::All => Ok(AllOrSome::All),
         AllOrSome::Some(origins) => {
@@ -1935,6 +1974,20 @@ mod tests {
         let _: CorsOptions = serde_json::from_str(json).expect("to not fail");
     }
 
+    #[test]
+    fn allowed_some_origins_allows_different_lifetimes() {
+        let static_exact = ["http://www.example.com"];
+
+        let random_allocation = vec![1, 2, 3];
+        let port: *const Vec<i32> = &random_allocation;
+        let port = port as u16;
+
+        let random_regex = vec![format!("https://(.+):{}", port)];
+
+        // Should compile
+        let _ = AllowedOrigins::some(&static_exact, &random_regex);
+    }
+
     // The following tests check validation
 
     #[test]
@@ -1950,7 +2003,7 @@ mod tests {
     fn validate_origin_allows_origin() {
         let url = "https://www.example.com";
         let origin = not_err!(to_parsed_origin(&url));
-        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some_exact(&[
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
             "https://www.example.com"
         ])));
 
@@ -1969,7 +2022,7 @@ mod tests {
 
         for (url, allowed_origin) in cases {
             let origin = not_err!(to_parsed_origin(&url));
-            let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some_exact(&[
+            let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
                 allowed_origin
             ])));
 
@@ -1981,7 +2034,7 @@ mod tests {
     fn validate_origin_validates_regex() {
         let url = "https://www.example-something.com";
         let origin = not_err!(to_parsed_origin(&url));
-        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some_regex(&[
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_regex(&[
             "^https://www.example-[A-z0-9]+.com$"
         ])));
 
@@ -1989,8 +2042,20 @@ mod tests {
     }
 
     #[test]
+    fn validate_origin_validates_opaque_origins() {
+        let url = "moz-extension://8c7c4444-e29f-…cb8-1ade813dbd12/js/content.js:505";
+        let origin = not_err!(to_parsed_origin(&url));
+        println!("{:#?}", origin);
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_regex(&[
+            "moz-extension://.*"
+        ])));
+
+        not_err!(validate_origin(&origin, &allowed_origins));
+    }
+
+    #[test]
     fn validate_origin_validates_mixed_settings() {
-        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some(
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some(
             &["https://www.acme.com"],
             &["^https://www.example-[A-z0-9]+.com$"]
         )));
@@ -2009,7 +2074,7 @@ mod tests {
     fn validate_origin_rejects_invalid_origin() {
         let url = "https://www.acme.com";
         let origin = not_err!(to_parsed_origin(&url));
-        let allowed_origins = not_err!(parse_origins(&AllowedOrigins::some_exact(&[
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
             "https://www.example.com"
         ])));
 
