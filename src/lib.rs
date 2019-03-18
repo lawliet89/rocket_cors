@@ -558,20 +558,59 @@ mod method_serde {
 
 /// A list of allowed origins. Either Some origins are allowed, or all origins are allowed.
 ///
+/// Exact matches are matched exactly with the
+/// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+/// of the origin.
+///
+/// Regular expressions are tested for matches against the
+/// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+/// of the origin.
+///
+/// # Warning about Regex expressions
+/// By default, regex expressions are
+/// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
+///
+/// This means that if the regex does not start with `^` or `\A`, or end with `$` or `\z`,
+/// then it is permitted to match anywhere in the text. You are encouraged to use the anchors when
+/// crafting your Regex expressions.
+///
 /// # Examples
 /// ```rust
 /// use rocket_cors::AllowedOrigins;
 ///
+/// let exact = ["https://www.acme.com"];
+/// let regex = ["^https://(.+).acme.com$"];
+///
 /// let all_origins = AllowedOrigins::all();
-/// let some_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
+/// let some_origins = AllowedOrigins::some_exact(&exact);
 /// let null_origins = AllowedOrigins::some_null();
+/// let regex_origins = AllowedOrigins::some_regex(&regex);
+/// let mixed_origins = AllowedOrigins::some(&exact, &regex);
 /// ```
+///
 pub type AllowedOrigins = AllOrSome<Origins>;
 
 impl AllowedOrigins {
-    /// Allows some origins
+    /// Allows some origins, with a mix of exact matches or regex matches
     ///
     /// Validation is not performed at this stage, but at a later stage.
+    ///
+    /// Exact matches are matched exactly with the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
+    ///
+    /// Regular expressions are tested for matches against the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
+    ///
+    /// # Warning about Regex expressions
+    /// By default, regex expressions are
+    /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
+    ///
+    /// This means that if the regex does not start with `^` or `\A`, or end with `$` or `\z`,
+    /// then it is permitted to match anywhere in the text. You are encouraged to use the anchors when
+    /// crafting your Regex expressions.
+    #[allow(clippy::needless_lifetimes)]
     pub fn some<'a, 'b, S1: AsRef<str>, S2: AsRef<str>>(exact: &'a [S1], regex: &'b [S2]) -> Self {
         AllOrSome::Some(Origins {
             exact: Some(exact.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -583,6 +622,10 @@ impl AllowedOrigins {
     /// Allows some _exact_ origins
     ///
     /// Validation is not performed at this stage, but at a later stage.
+    ///
+    /// Exact matches are matched exactly with the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
     pub fn some_exact<S: AsRef<str>>(exact: &[S]) -> Self {
         AllOrSome::Some(Origins {
             exact: Some(exact.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -590,7 +633,21 @@ impl AllowedOrigins {
         })
     }
 
-    /// Allow some __regex__ origins
+    /// Allow some regular expression origins
+    ///
+    /// Validation is not performed at this stage, but at a later stage.
+    ///
+    /// Regular expressions are tested for matches against the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
+    ///
+    /// # Warning about Regex expressions
+    /// By default, regex expressions are
+    /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
+    ///
+    /// This means that if the regex does not start with `^` or `\A`, or end with `$` or `\z`,
+    /// then it is permitted to match anywhere in the text. You are encouraged to use the anchors when
+    /// crafting your Regex expressions.
     pub fn some_regex<S: AsRef<str>>(regex: &[S]) -> Self {
         AllOrSome::Some(Origins {
             regex: Some(regex.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -621,6 +678,22 @@ impl AllowedOrigins {
 ///
 /// These Origins are specified as logical `ORs`. That is, if any of the origins match, the entire
 /// request is considered to be valid.
+///
+/// Exact matches are matched exactly with the
+/// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+/// of the origin.
+///
+/// Regular expressions are tested for matches against the
+/// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+/// of the origin.
+///
+/// # Warning about Regex expressions
+/// By default, regex expressions are
+/// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
+///
+/// This means that if the regex does not start with `^` or `\A`, or end with `$` or `\z`,
+/// then it is permitted to match anywhere in the text. You are encouraged to use the anchors when
+/// crafting your Regex expressions.
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serialization", serde(default))]
@@ -632,6 +705,10 @@ pub struct Origins {
     ///
     /// These __must__ be valid URL strings that will be parsed and validated when
     /// creating [`Cors`].
+    ///
+    /// Exact matches are matched exactly with the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
     #[cfg_attr(feature = "serialization", serde(default))]
     pub exact: Option<HashSet<String>>,
     /// Origins that will be matched via __any__ regex in this list.
@@ -644,6 +721,14 @@ pub struct Origins {
     ///
     /// For more information on the syntax of Regex in Rust, see the
     /// [documentation](https://docs.rs/regex).
+    ///
+    /// Regular expressions are tested for matches against the
+    /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
+    /// of the origin.
+    ///
+    /// # Warning about Regex expressions
+    /// By default, regex expressions are
+    /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
     #[cfg_attr(feature = "serialization", serde(default))]
     pub regex: Option<HashSet<String>>,
 }
@@ -2032,12 +2117,17 @@ mod tests {
 
     #[test]
     fn validate_origin_validates_regex() {
-        let url = "https://www.example-something.com";
-        let origin = not_err!(to_parsed_origin(&url));
         let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_regex(&[
-            "^https://www.example-[A-z0-9]+.com$"
+            "^https://www.example-[A-z0-9]+.com$",
+            "^https://(.+).acme.com$",
         ])));
 
+        let url = "https://www.example-something.com";
+        let origin = not_err!(to_parsed_origin(&url));
+        not_err!(validate_origin(&origin, &allowed_origins));
+
+        let url = "https://subdomain.acme.com";
+        let origin = not_err!(to_parsed_origin(&url));
         not_err!(validate_origin(&origin, &allowed_origins));
     }
 

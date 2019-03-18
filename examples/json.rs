@@ -13,7 +13,8 @@ fn main() {
     // The default demonstrates the "All" serialization of several of the settings
     let default: CorsOptions = Default::default();
 
-    let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
+    let allowed_origins =
+        AllowedOrigins::some(&["https://www.acme.com"], &["^https://(.+).acme.com$"]);
 
     let options = cors::CorsOptions {
         allowed_origins,
