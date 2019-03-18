@@ -31,7 +31,7 @@ before_script:
   - rustup component add clippy || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy
 script:
   - cargo fmt -- --check
-  - cargo clippy "${CARGO_FLAGS}" -- -D warnings
+  - cargo clippy "${CARGO_FLAGS}" --all-targets -- -D warnings
   - |
     cargo build "${CARGO_FLAGS}" &&
     cargo test "${CARGO_FLAGS}" &&
