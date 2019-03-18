@@ -100,7 +100,6 @@ impl FromStr for Origin {
         if input.to_lowercase() == "null" {
             Ok(Origin::Null)
         } else {
-            // Ok(Origin::Parsed(crate::to_origin(input)?))
             match crate::to_origin(input)? {
                 url::Origin::Opaque(_) => Ok(Origin::Opaque(input.to_string())),
                 parsed @ url::Origin::Tuple(..) => Ok(Origin::Parsed(parsed)),
