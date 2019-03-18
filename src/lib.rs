@@ -572,7 +572,7 @@ impl AllowedOrigins {
     /// Allows some origins
     ///
     /// Validation is not performed at this stage, but at a later stage.
-    pub fn some<S1: AsRef<str>, S2: AsRef<str>>(exact: &[S1], regex: &[S2]) -> Self {
+    pub fn some<'a, 'b, S1: AsRef<str>, S2: AsRef<str>>(exact: &'a [S1], regex: &'b [S2]) -> Self {
         AllOrSome::Some(Origins {
             exact: Some(exact.iter().map(|s| s.as_ref().to_string()).collect()),
             regex: Some(regex.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -1972,6 +1972,20 @@ mod tests {
   "fairing_route_base": "/mycors"
 }"#;
         let _: CorsOptions = serde_json::from_str(json).expect("to not fail");
+    }
+
+    #[test]
+    fn allowed_some_origins_allows_different_lifetimes() {
+        let static_exact = ["http://www.example.com"];
+
+        let random_allocation = vec![1, 2, 3];
+        let port: *const Vec<i32> = &random_allocation;
+        let port = port as u16;
+
+        let random_regex = vec![format!("https://(.+):{}", port)];
+
+        // Should compile
+        let _ = AllowedOrigins::some(&static_exact, &random_regex);
     }
 
     // The following tests check validation
