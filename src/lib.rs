@@ -806,7 +806,6 @@ impl ParsedAllowedOrigins {
             None => Ok(Default::default()),
         };
         let exact = exact?;
-        println!("{:#?}", exact);
 
         // Let's check if they are Opaque
         let (tuple, opaque): (Vec<_>, Vec<_>) =
@@ -836,6 +835,7 @@ impl ParsedAllowedOrigins {
     }
 
     fn verify(&self, origin: &Origin) -> bool {
+        info_!("Verifying origin: {}", origin);
         match origin {
             Origin::Null => {
                 info_!("Origin is null. Allowing? {}", self.allow_null);
@@ -2128,15 +2128,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"OpaqueAllowedOrigin(["chrome-extension://something", "moz-extension://something"])"#
-    )]
     fn allowed_origins_errors_on_opaque_exact() {
-        let _ = parse_allowed_origins(&AllowedOrigins::some::<_, &str>(
+        let error = parse_allowed_origins(&AllowedOrigins::some::<_, &str>(
             &["chrome-extension://something", "moz-extension://something"],
             &[],
         ))
-        .unwrap();
+        .unwrap_err();
+
+        match error {
+            Error::OpaqueAllowedOrigin(mut origins) => {
+                origins.sort();
+                assert_eq!(
+                    origins,
+                    ["chrome-extension://something", "moz-extension://something"]
+                );
+            }
+            others => {
+                panic!("Unexpected error: {:#?}", others);
+            }
+        };
     }
 
     // The following tests check validation
@@ -2201,7 +2211,6 @@ mod tests {
     fn validate_origin_validates_opaque_origins() {
         let url = "moz-extension://8c7c4444-e29f-…cb8-1ade813dbd12/js/content.js:505";
         let origin = not_err!(to_parsed_origin(&url));
-        println!("{:#?}", origin);
         let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_regex(&[
             "moz-extension://.*"
         ])));
