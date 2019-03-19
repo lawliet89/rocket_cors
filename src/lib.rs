@@ -309,7 +309,7 @@ pub enum Error {
     MissingOrigin,
     /// The HTTP request header `Origin` could not be parsed correctly.
     BadOrigin(url::ParseError),
-    /// The configured Allowed Origin is opaque and cannot be parsed.
+    /// The configured Allowed Origin is an Opaque origin. Use a Regex instead.
     OpaqueAllowedOrigin(String),
     /// The request header `Access-Control-Request-Method` is required but is missing
     MissingRequestMethod,
@@ -401,8 +401,8 @@ impl fmt::Display for Error {
             }
             Error::OpaqueAllowedOrigin(ref origin) => write!(
                 f,
-                "The configured Origin '{}' does \
-                 not have a parsable Origin. Use a regex instead.",
+                "The configured Origin '{}' is an Opaque Origin \
+                 Use a regex instead.",
                 origin
             ),
             Error::RegexError(ref e) => write!(f, "{}", e),
@@ -566,6 +566,15 @@ mod method_serde {
 /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
 /// of the origin.
 ///
+/// # Opaque Origins
+/// The [specification](https://html.spec.whatwg.org/multipage/origin.html) defines an Opaque Origin
+/// as one that cannot be recreated. You can refer to the source code for the [`url::Url::origin`]
+/// method to see how an Opaque Origin is determined. Examples of Opaque origins might include
+/// schemes like `file://` or Browser specific schemes like `"moz-extension://` or
+/// `chrome-extension://`.
+///
+/// Opaque Origins cannot be matched exactly. You must use Regex to match Opaque Origins. If you
+/// attempt to create [`Cors`] from [`CorsOptions`], you will get an error.
 /// # Warning about Regex expressions
 /// By default, regex expressions are
 /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
@@ -603,6 +612,15 @@ impl AllowedOrigins {
     /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
     /// of the origin.
     ///
+    /// # Opaque Origins
+    /// The [specification](https://html.spec.whatwg.org/multipage/origin.html) defines an Opaque Origin
+    /// as one that cannot be recreated. You can refer to the source code for the [`url::Url::origin`]
+    /// method to see how an Opaque Origin is determined. Examples of Opaque origins might include
+    /// schemes like `file://` or Browser specific schemes like `"moz-extension://` or
+    /// `chrome-extension://`.
+    ///
+    /// Opaque Origins cannot be matched exactly. You must use Regex to match Opaque Origins. If you
+    /// attempt to create [`Cors`] from [`CorsOptions`], you will get an error.
     /// # Warning about Regex expressions
     /// By default, regex expressions are
     /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
@@ -626,6 +644,12 @@ impl AllowedOrigins {
     /// Exact matches are matched exactly with the
     /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
     /// of the origin.
+    /// # Opaque Origins
+    /// The [specification](https://html.spec.whatwg.org/multipage/origin.html) defines an Opaque Origin
+    /// as one that cannot be recreated. You can refer to the source code for the [`url::Url::origin`]
+    /// method to see how an Opaque Origin is determined. Examples of Opaque origins might include
+    /// schemes like `file://` or Browser specific schemes like `"moz-extension://` or
+    /// `chrome-extension://`.
     pub fn some_exact<S: AsRef<str>>(exact: &[S]) -> Self {
         AllOrSome::Some(Origins {
             exact: Some(exact.iter().map(|s| s.as_ref().to_string()).collect()),
@@ -687,6 +711,16 @@ impl AllowedOrigins {
 /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
 /// of the origin.
 ///
+/// # Opaque Origins
+/// The [specification](https://html.spec.whatwg.org/multipage/origin.html) defines an Opaque Origin
+/// as one that cannot be recreated. You can refer to the source code for the [`url::Url::origin`]
+/// method to see how an Opaque Origin is determined. Examples of Opaque origins might include
+/// schemes like `file://` or Browser specific schemes like `"moz-extension://` or
+/// `chrome-extension://`.
+///
+/// Opaque Origins cannot be matched exactly. You must use Regex to match Opaque Origins. If you
+/// attempt to create [`Cors`] from [`CorsOptions`], you will get an error.
+///
 /// # Warning about Regex expressions
 /// By default, regex expressions are
 /// [unanchored](https://docs.rs/regex/1.1.2/regex/struct.RegexSet.html#method.is_match).
@@ -709,6 +743,16 @@ pub struct Origins {
     /// Exact matches are matched exactly with the
     /// [ASCII Serialization](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin)
     /// of the origin.
+    ///
+    /// # Opaque Origins
+    /// The [specification](https://html.spec.whatwg.org/multipage/origin.html) defines an Opaque Origin
+    /// as one that cannot be recreated. You can refer to the source code for the [`url::Url::origin`]
+    /// method to see how an Opaque Origin is determined. Examples of Opaque origins might include
+    /// schemes like `file://` or Browser specific schemes like `"moz-extension://` or
+    /// `chrome-extension://`.
+    ///
+    /// Opaque Origins cannot be matched exactly. You must use Regex to match Opaque Origins. If you
+    /// attempt to create [`Cors`] from [`CorsOptions`], you will get an error.
     #[cfg_attr(feature = "serialization", serde(default))]
     pub exact: Option<HashSet<String>>,
     /// Origins that will be matched via __any__ regex in this list.
