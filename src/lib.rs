@@ -2130,7 +2130,11 @@ mod tests {
     #[test]
     fn allowed_origins_errors_on_opaque_exact() {
         let error = parse_allowed_origins(&AllowedOrigins::some::<_, &str>(
-            &["chrome-extension://something", "moz-extension://something"],
+            &[
+                "chrome-extension://something",
+                "moz-extension://something",
+                "https://valid.com",
+            ],
             &[],
         ))
         .unwrap_err();
