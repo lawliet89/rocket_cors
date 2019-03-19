@@ -217,6 +217,39 @@ mod tests {
         Client::new(rocket).expect("valid rocket instance")
     }
 
+    // `Origin::from_str` tests
+
+    #[test]
+    fn origin_is_parsed_properly() {
+        let url = "https://foo.bar.xyz";
+        let parsed = not_err!(Origin::from_str(url));
+        assert_eq!(parsed.ascii_serialization(), url);
+    }
+
+    #[test]
+    fn origin_parsing_strips_paths() {
+        // this should never really be sent by a compliant user agent
+        let url = "https://foo.bar.xyz/path/somewhere";
+        let parsed = not_err!(Origin::from_str(url));
+        let expected = "https://foo.bar.xyz";
+        assert_eq!(parsed.ascii_serialization(), expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "BadOrigin")]
+    fn origin_parsing_disallows_invalid_origins() {
+        let url = "invalid_url";
+        let _ = Origin::from_str(url).unwrap();
+    }
+
+    #[test]
+    fn origin_parses_opaque_origins() {
+        let url = "blob://foobar";
+        let parsed = not_err!(Origin::from_str(url));
+
+        assert!(!parsed.is_tuple());
+    }
+
     // The following tests check that CORS Request headers are parsed correctly
 
     #[test]

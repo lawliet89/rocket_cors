@@ -309,8 +309,8 @@ pub enum Error {
     MissingOrigin,
     /// The HTTP request header `Origin` could not be parsed correctly.
     BadOrigin(url::ParseError),
-    /// The configured Allowed Origin is an Opaque origin. Use a Regex instead.
-    OpaqueAllowedOrigin(String),
+    /// The configured Allowed Origins are Opaque origins. Use a Regex instead.
+    OpaqueAllowedOrigin(Vec<String>),
     /// The request header `Access-Control-Request-Method` is required but is missing
     MissingRequestMethod,
     /// The request header `Access-Control-Request-Method` has an invalid value
@@ -399,11 +399,11 @@ impl fmt::Display for Error {
                 "The `on_response` handler of Fairing could not find the injected header from the \
                  Request. Either some other fairing has removed it, or this is a bug.")
             }
-            Error::OpaqueAllowedOrigin(ref origin) => write!(
+            Error::OpaqueAllowedOrigin(ref origins) => write!(
                 f,
-                "The configured Origin '{}' is an Opaque Origin \
-                 Use a regex instead.",
-                origin
+                "The configured Origins '{}' are Opaque Origins. \
+                 Use regex instead.",
+                origins.join("; ")
             ),
             Error::RegexError(ref e) => write!(f, "{}", e),
         }
@@ -462,7 +462,7 @@ impl<T> Default for AllOrSome<T> {
 impl<T> AllOrSome<T> {
     /// Returns whether this is an `All` variant
     pub fn is_all(&self) -> bool {
-        match *self {
+        match self {
             AllOrSome::All => true,
             AllOrSome::Some(_) => false,
         }
@@ -471,6 +471,17 @@ impl<T> AllOrSome<T> {
     /// Returns whether this is a `Some` variant
     pub fn is_some(&self) -> bool {
         !self.is_all()
+    }
+
+    /// Unwrap a `Some` variant and get its inner value
+    ///
+    /// # Panics
+    /// Panics if the variant is `All`
+    pub fn unwrap(self) -> T {
+        match self {
+            AllOrSome::All => panic!("Attempting to unwrap an `All`"),
+            AllOrSome::Some(inner) => inner,
+        }
     }
 }
 
@@ -787,20 +798,30 @@ pub(crate) struct ParsedAllowedOrigins {
 
 impl ParsedAllowedOrigins {
     fn parse(origins: &Origins) -> Result<Self, Error> {
-        let exact: Result<HashSet<url::Origin>, Error> = match &origins.exact {
-            Some(exact) => exact.iter().map(|url| to_origin(url.as_str())).collect(),
+        let exact: Result<Vec<(&str, url::Origin)>, Error> = match &origins.exact {
+            Some(exact) => exact
+                .iter()
+                .map(|url| Ok((url.as_str(), to_origin(url.as_str())?)))
+                .collect(),
             None => Ok(Default::default()),
         };
         let exact = exact?;
+        println!("{:#?}", exact);
 
-        // Let's check if any of them is Opaque
-        exact.iter().try_for_each(|url| {
-            if !url.is_tuple() {
-                Err(Error::OpaqueAllowedOrigin(url.ascii_serialization()))
-            } else {
-                Ok(())
-            }
-        })?;
+        // Let's check if they are Opaque
+        let (tuple, opaque): (Vec<_>, Vec<_>) =
+            exact.into_iter().partition(|(_, url)| url.is_tuple());
+
+        if !opaque.is_empty() {
+            Err(Error::OpaqueAllowedOrigin(
+                opaque
+                    .into_iter()
+                    .map(|(original, _)| original.to_string())
+                    .collect(),
+            ))?
+        }
+
+        let exact = tuple.into_iter().map(|(_, url)| url).collect();
 
         let regex = match &origins.regex {
             None => None,
@@ -1989,39 +2010,6 @@ mod tests {
         Client::new(rocket).expect("valid rocket instance")
     }
 
-    // `to_origin` tests
-
-    #[test]
-    fn origin_is_parsed_properly() {
-        let url = "https://foo.bar.xyz";
-        let parsed = not_err!(Origin::from_str(url));
-        assert_eq!(parsed.ascii_serialization(), url);
-    }
-
-    #[test]
-    fn origin_parsing_strips_paths() {
-        // this should never really be sent by a compliant user agent
-        let url = "https://foo.bar.xyz/path/somewhere";
-        let parsed = not_err!(Origin::from_str(url));
-        let expected = "https://foo.bar.xyz";
-        assert_eq!(parsed.ascii_serialization(), expected);
-    }
-
-    #[test]
-    #[should_panic(expected = "BadOrigin")]
-    fn origin_parsing_disallows_invalid_origins() {
-        let url = "invalid_url";
-        let _ = Origin::from_str(url).unwrap();
-    }
-
-    #[test]
-    fn origin_parses_opaque_origins() {
-        let url = "blob://foobar";
-        let parsed = not_err!(Origin::from_str(url));
-
-        assert!(!parsed.is_tuple());
-    }
-
     // CORS options test
 
     #[test]
@@ -2115,6 +2103,40 @@ mod tests {
 
         // Should compile
         let _ = AllowedOrigins::some(&static_exact, &random_regex);
+    }
+
+    // `ParsedAllowedOrigins::parse` tests
+    #[test]
+    fn allowed_origins_are_parsed_correctly() {
+        let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some(
+            &["https://www.acme.com"],
+            &["^https://www.example-[A-z0-9]+.com$"]
+        )));
+        assert!(allowed_origins.is_some());
+
+        let expected_exact: HashSet<url::Origin> = [url::Url::from_str("https://www.acme.com")
+            .expect("not to fail")
+            .origin()]
+        .iter()
+        .map(Clone::clone)
+        .collect();
+        let expected_regex = ["^https://www.example-[A-z0-9]+.com$"];
+
+        let actual = allowed_origins.unwrap();
+        assert_eq!(expected_exact, actual.exact);
+        assert_eq!(expected_regex, actual.regex.expect("to be some").patterns());
+    }
+
+    #[test]
+    #[should_panic(
+        expected = r#"OpaqueAllowedOrigin(["chrome-extension://something", "moz-extension://something"])"#
+    )]
+    fn allowed_origins_errors_on_opaque_exact() {
+        let _ = parse_allowed_origins(&AllowedOrigins::some::<_, &str>(
+            &["chrome-extension://something", "moz-extension://something"],
+            &[],
+        ))
+        .unwrap();
     }
 
     // The following tests check validation
