@@ -1,6 +1,8 @@
 # CHANGELOG
 
-## <a name="0.5.0"></a>0.5.0 (Unreleased)
+## <a name="0.5.0"></a>0.5.0 (2019-05-27)
+
+There is no change since `0.5.0-beta1`.
 
 ### Breaking Changes
 

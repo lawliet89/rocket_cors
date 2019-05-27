@@ -45,7 +45,7 @@ the [`CorsOptions`] struct that is described below. If you would like to disable
 change your `Cargo.toml` to:
 
 ```toml
-rocket_cors = { version = "0.5.0-beta-2", default-features = false }
+rocket_cors = { version = "0.5.0", default-features = false }
 ```
 
 ## Usage
@@ -1576,6 +1576,7 @@ where
 ///
 /// The variants hold enough information to build a response to the validation result
 #[derive(Debug, Eq, PartialEq)]
+#[allow(variant_size_differences)]
 enum ValidationResult {
     /// Not a CORS request
     None,
