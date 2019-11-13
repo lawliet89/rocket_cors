@@ -1,0 +1,69 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+name: Continuous integration
+
+jobs:
+  ci:
+    strategy:
+      matrix:
+        rust:
+          - nightly
+          - nightly-2019-05-21  # MSRV
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macOS-latest
+
+        cargo_flags:
+          - "--all-features"
+          - "--no-default-features"
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+        name: Checkout
+
+      - uses: actions-rs/toolchain@v1
+        name: Verify Rust Toolchain
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
+
+      - name: Remove Rust Toolchain file
+        run: rm rust-toolchain
+
+      - uses: actions-rs/cargo@v1
+        name: Clippy Lint
+        with:
+          command: clippy
+          args: ${{ matrix.cargo_flags }} --all-targets -- -D warnings
+
+      - uses: actions-rs/cargo@v1
+        name: Build
+        with:
+          command: build
+          args: ${{ matrix.cargo_flags }} --verbose
+
+      - uses: actions-rs/cargo@v1
+        name: Unit Tests
+        with:
+          command: test
+          args: ${{ matrix.cargo_flags }}
+
+      - uses: actions-rs/cargo@v1
+        name: Format Check
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - uses: actions-rs/cargo@v1
+        name: Build Documentation
+        with:
+          command: doc
+          args: ${{ matrix.cargo_flags }} --no-deps
