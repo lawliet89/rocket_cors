@@ -2,8 +2,7 @@ sudo: false
 language: rust
 rust:
   - nightly
-  # Minimum Rust set by Rocket
-  - nightly-2018-11-25
+  - nightly-2019-05-21 # Minimum supported
 branches:
   only:
   - master

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.5.1 (2019-11-13)
+
+There are no new features.
+
+- Fix build issues with Rocket 0.4.2
+- Fix clippy lints with latest nightly
+
 ## <a name="0.5.0"></a>0.5.0 (2019-05-27)
 
 There is no change since `0.5.0-beta1`.

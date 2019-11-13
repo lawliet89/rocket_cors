@@ -328,7 +328,7 @@ mod tests {
         let headers = ["foo", "bar", "baz"];
         let parsed_headers = not_err!(AccessControlRequestHeaders::from_str(&headers.join(", ")));
         let expected_headers: HeaderFieldNamesSet =
-            headers.iter().map(|s| s.to_string().into()).collect();
+            headers.iter().map(|s| (*s).to_string().into()).collect();
         let AccessControlRequestHeaders(actual_headers) = parsed_headers;
         assert_eq!(actual_headers, expected_headers);
     }
