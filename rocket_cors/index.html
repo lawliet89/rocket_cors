@@ -1,0 +1,193 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `rocket_cors` crate."><meta name="keywords" content="rust, rustlang, rust-lang, rocket_cors"><title>rocket_cors - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../rocket_cors/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate rocket_cors</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all rocket_cors's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'rocket_cors', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/rocket_cors/lib.rs.html#1-2910' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>rocket_cors</a></span></h1><div class='docblock'><p><a href="https://travis-ci.org/lawliet89/rocket_cors"><img src="https://travis-ci.org/lawliet89/rocket_cors.svg" alt="Build Status" /></a>
+<a href="https://github.com/lawliet89/rocket_cors"><img src="https://img.shields.io/github/tag/lawliet89/rocket_cors.svg" alt="Repository" /></a>
+<a href="https://crates.io/crates/rocket_cors"><img src="https://img.shields.io/crates/v/rocket_cors.svg" alt="Crates.io" /></a></p>
+<ul>
+<li>Documentation: <a href="https://lawliet89.github.io/rocket_cors">master branch</a> | <a href="https://docs.rs/rocket_cors">stable</a></li>
+</ul>
+<p>Cross-origin resource sharing (CORS) for <a href="https://rocket.rs/">Rocket</a> applications</p>
+<h2 id="requirements" class="section-header"><a href="#requirements">Requirements</a></h2>
+<ul>
+<li>Nightly Rust</li>
+<li>Rocket &gt;= 0.4</li>
+</ul>
+<p>If you are using Rocket 0.3, use the <code>0.3.0</code> version of this crate.</p>
+<h3 id="nightly-rust" class="section-header"><a href="#nightly-rust">Nightly Rust</a></h3>
+<p>Rocket requires nightly Rust. You should probably install Rust with
+<a href="https://www.rustup.rs/">rustup</a>, then override the code directory to use nightly instead of
+stable. See
+<a href="https://rocket.rs/guide/getting-started/#installing-rust">installation instructions</a>.</p>
+<p>In particular, <code>rocket_cors</code> is currently targetted for the latest <code>nightly</code>. Older nightlies
+might work, but they are subject to the minimum that Rocket sets.</p>
+<h2 id="installation" class="section-header"><a href="#installation">Installation</a></h2>
+<p>Add the following to Cargo.toml:</p>
+<pre><code class="language-toml">rocket_cors = &quot;0.5.1&quot;
+</code></pre>
+<p>To use the latest <code>master</code> branch, for example:</p>
+<pre><code class="language-toml">rocket_cors = { git = &quot;https://github.com/lawliet89/rocket_cors&quot;, branch = &quot;master&quot; }
+</code></pre>
+<h2 id="features" class="section-header"><a href="#features">Features</a></h2>
+<p>By default, a <code>serialization</code> feature is enabled in this crate that allows you to (de)serialize
+the <a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a> struct that is described below. If you would like to disable this, simply
+change your <code>Cargo.toml</code> to:</p>
+<pre><code class="language-toml">rocket_cors = { version = &quot;0.5.1&quot;, default-features = false }
+</code></pre>
+<h2 id="usage" class="section-header"><a href="#usage">Usage</a></h2>
+<p>Before you can add CORS responses to your application, you need to create a <a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a>
+struct that will hold the settings. Then, you need to create a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct using
+<a href="../rocket_cors/struct.CorsOptions.html#method.to_cors" title="`CorsOptions::to_cors`"><code>CorsOptions::to_cors</code></a> which will validate and optimise the settings for Rocket to use.</p>
+<p>Each of the examples can be run off the repository via <code>cargo run --example xxx</code> where <code>xxx</code> is</p>
+<ul>
+<li><code>fairing</code></li>
+<li><code>guard</code></li>
+<li><code>manual</code></li>
+</ul>
+<h3 id="corsoptions-struct" class="section-header"><a href="#corsoptions-struct"><code>CorsOptions</code> Struct</a></h3>
+<p>The <a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a> struct contains the settings for CORS requests to be validated
+and for responses to be generated. Defaults are defined for every field in the struct, and
+are documented on the <a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a> page. You can also deserialize
+the struct from some format like JSON, YAML or TOML when the default <code>serialization</code> feature
+is enabled.</p>
+<h3 id="cors-struct" class="section-header"><a href="#cors-struct"><code>Cors</code> Struct</a></h3>
+<p>The <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct is what will be used with Rocket. After creating or deserializing a
+<a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a> struct, use <a href="../rocket_cors/struct.CorsOptions.html#method.to_cors" title="`CorsOptions::to_cors`"><code>CorsOptions::to_cors</code></a> to create a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct.</p>
+<h3 id="three-modes-of-operation" class="section-header"><a href="#three-modes-of-operation">Three modes of operation</a></h3>
+<p>You can add CORS to your routes via one of three ways, in descending order of ease and in
+ascending order of flexibility.</p>
+<ul>
+<li>Fairing (should only used exclusively)</li>
+<li>Request Guard</li>
+<li>Truly Manual</li>
+</ul>
+<p>Unfortunately, you cannot mix and match Fairing with any other of the methods, due to the
+limitation of Rocket's fairing API. That is, the checks for Fairing will always happen first,
+and if they fail, the route is never executed and so your guard or manual checks will never
+get executed.</p>
+<p>You can, however, mix and match guards and manual checks.</p>
+<p>In summary:</p>
+<table><thead><tr><th align="center"></th><th align="center">Fairing</th><th align="center">Request Guard</th><th align="center">Manual</th></tr></thead><tbody>
+<tr><td align="center">Must apply to all routes</td><td align="center">✔</td><td align="center">✗</td><td align="center">✗</td></tr>
+<tr><td align="center">Different settings for different routes</td><td align="center">✗</td><td align="center">✗</td><td align="center">✔</td></tr>
+<tr><td align="center">May define custom OPTIONS routes</td><td align="center">✗</td><td align="center">✔</td><td align="center">✔</td></tr>
+</tbody></table>
+<h3 id="fairing" class="section-header"><a href="#fairing">Fairing</a></h3>
+<p>Fairing is the easiest to use and also the most inflexible. You don't have to define <code>OPTIONS</code>
+routes for your application, and the checks are done transparently.</p>
+<p>However, you can only have one set of settings that must apply to all routes. You cannot opt
+any route out of CORS checks.</p>
+<p>To use this, simply create a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> from <a href="../rocket_cors/struct.CorsOptions.html#method.to_cors" title="`CorsOptions::to_cors`"><code>CorsOptions::to_cors</code></a> and then
+<a href="https://api.rocket.rs/rocket/struct.Rocket.html#method.attach"><code>attach</code></a> it to Rocket.</p>
+<p>Refer to the <a href="https://github.com/lawliet89/rocket_cors/blob/master/examples/fairing.rs">example</a>.</p>
+<h4 id="injected-route" class="section-header"><a href="#injected-route">Injected Route</a></h4>
+<p>The fairing implementation will inject a route during attachment to Rocket. This route is used
+to handle errors during CORS validation.</p>
+<p>This is due to the limitation in Rocket's Fairing
+<a href="https://rocket.rs/guide/fairings/">lifecycle</a>. Ideally, we want to validate the CORS request
+during <code>on_request</code>, and if the validation fails, we want to stop the route from even executing
+to</p>
+<ol>
+<li>prevent side effects</li>
+<li>prevent resource usage from unnecessary computation</li>
+</ol>
+<p>The only way to do this is to hijack the request and route it to our own injected route to
+handle errors. Rocket does not allow Fairings to stop the processing of a route.</p>
+<p>You can configure the behaviour of the injected route through a couple of fields in the
+<a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a>.</p>
+<h3 id="request-guard" class="section-header"><a href="#request-guard">Request Guard</a></h3>
+<p>Using request guard requires you to sacrifice the convenience of Fairings for being able to
+opt some routes out of CORS checks and enforcement. <em>BUT</em> you are still restricted to only
+one set of CORS settings and you have to mount additional routes to catch and process OPTIONS
+requests. The <code>OPTIONS</code> routes are used for CORS preflight checks.</p>
+<p>You will have to do the following:</p>
+<ul>
+<li>Create a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> from <a href="../rocket_cors/struct.CorsOptions.html" title="`CorsOptions`"><code>CorsOptions</code></a> and during Rocket's ignite, add the struct to
+Rocket's <a href="https://rocket.rs/guide/state/#managed-state">managed state</a>.</li>
+<li>For all the routes that you want to enforce CORS on, you can mount either some
+<a href="../rocket_cors/fn.catch_all_options_routes.html">catch all route</a> or define your own route for the OPTIONS
+verb.</li>
+<li>Then in all the routes you want to enforce CORS on, add a
+<a href="https://rocket.rs/guide/requests/#request-guards">Request Guard</a> for the
+<a href="../rocket_cors/struct.Guard.html"><code>Guard</code></a> struct in the route arguments. You should not wrap this in an
+<code>Option</code> or <code>Result</code> because the guard will let non-CORS requests through and will take over
+error handling in case of errors.</li>
+<li>In your routes, to add CORS headers to your responses, use the appropriate functions on the
+<a href="../rocket_cors/struct.Guard.html"><code>Guard</code></a> for a <code>Response</code> or a <code>Responder</code>.</li>
+</ul>
+<p>Refer to the <a href="https://github.com/lawliet89/rocket_cors/blob/master/examples/guard.rs">example</a>.</p>
+<h2 id="truly-manual" class="section-header"><a href="#truly-manual">Truly Manual</a></h2>
+<p>This mode is the most difficult to use but offers the most amount of flexibility.
+You might have to understand how the library works internally to know how to use this mode.
+In exchange, you can selectively choose which routes to offer CORS protection to, and you
+can mix and match CORS settings for the routes. You can combine usage of this mode with
+&quot;guard&quot; to offer a mix of ease of use and flexibility.</p>
+<p>You really do not need to use this unless you have a truly ad-hoc need to respond to CORS
+differently in a route. For example, you have a <code>ping</code> endpoint that allows all origins but
+the rest of your routes do not.</p>
+<h3 id="handler" class="section-header"><a href="#handler">Handler</a></h3>
+<p>This mode requires that you pass in a closure that will be lazily evaluated once a CORS request
+has been validated. If validation fails, the closure will not be run. You should put any code
+that has any side effects or with an appreciable computation cost inside this handler.</p>
+<h3 id="steps-to-perform" class="section-header"><a href="#steps-to-perform">Steps to perform:</a></h3>
+<ul>
+<li>You will first need to have a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct ready. This struct can be borrowed with a lifetime
+at least as long as <code>'r</code> which is the lifetime of a Rocket request. <code>'static</code> works too.
+In this case, you might as well use the <code>Guard</code> method above and place the <code>Cors</code> struct in
+Rocket's <a href="https://rocket.rs/guide/state/">state</a>.
+Alternatively, you can create a <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct directly in the route.</li>
+<li>Your routes <em>might</em> need to have a <code>'r</code> lifetime and return <code>impl Responder&lt;'r&gt;</code>. See below.</li>
+<li>Using the <a href="../rocket_cors/struct.Cors.html" title="`Cors`"><code>Cors</code></a> struct, use either the
+<a href="../rocket_cors/struct.Cors.html#method.respond_owned" title="`Cors::respond_owned`"><code>Cors::respond_owned</code></a> or
+<a href="../rocket_cors/struct.Cors.html#method.respond_borrowed" title="`Cors::respond_borrowed`"><code>Cors::respond_borrowed</code></a> function and pass in a handler
+that will be executed once CORS validation is successful.</li>
+<li>Your handler will be passed a <a href="../rocket_cors/struct.Guard.html" title="`Guard`"><code>Guard</code></a> which you will have to use to
+add CORS headers into your own response.</li>
+<li>You will have to manually define your own <code>OPTIONS</code> routes.</li>
+</ul>
+<h3 id="notes-about-route-lifetime" class="section-header"><a href="#notes-about-route-lifetime">Notes about route lifetime</a></h3>
+<p>You might have to specify a <code>'r</code> lifetime in your routes and then return <code>impl Responder&lt;'r&gt;</code>.
+If you are not sure what to do, you can try to leave the lifetime out and then add it in
+when the compiler complains.</p>
+<p>Generally, you will need to manually annotate the lifetime for the following cases where
+the compiler is unable to <a href="https://doc.rust-lang.org/beta/nomicon/lifetime-elision.html">elide</a>
+the lifetime:</p>
+<ul>
+<li>Your function arguments do not borrow anything.</li>
+<li>Your function arguments borrow from more than one lifetime.</li>
+<li>Your function arguments borrow from a lifetime that is shorter than the <code>'r</code> lifetime
+required.</li>
+</ul>
+<p>You can see examples when the lifetime annotation is required (or not) in <code>examples/manual.rs</code>.</p>
+<p>See the <a href="https://github.com/lawliet89/rocket_cors/blob/master/examples/manual.rs">example</a>.</p>
+<h2 id="mixing-guard-and-manual" class="section-header"><a href="#mixing-guard-and-manual">Mixing Guard and Manual</a></h2>
+<p>You can mix <code>Guard</code> and <code>Truly Manual</code> modes together for your application. For example, your
+application might restrict the Origins that can access it, except for one <code>ping</code> route that
+allows all access.</p>
+<p>See the <a href="https://github.com/lawliet89/rocket_cors/blob/master/examples/guard.rs">example</a>.</p>
+<h2 id="reference" class="section-header"><a href="#reference">Reference</a></h2>
+<ul>
+<li><a href="https://fetch.spec.whatwg.org/#cors-protocol">Fetch CORS Specification</a></li>
+<li><a href="https://www.w3.org/TR/cors/">Supplanted W3C CORS Specification</a></li>
+<li><a href="https://w3c.github.io/webappsec-cors-for-developers/#resources">Resource Advice</a></li>
+</ul>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="headers/index.html" title='rocket_cors::headers mod'>headers</a></td><td class='docblock-short'><p>CORS specific Request Headers</p>
+</td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.Cors.html" title='rocket_cors::Cors struct'>Cors</a></td><td class='docblock-short'><p>Response generator and <a href="https://rocket.rs/guide/fairings/">Fairing</a> for CORS</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.CorsOptions.html" title='rocket_cors::CorsOptions struct'>CorsOptions</a></td><td class='docblock-short'><p>Configuration options for CORS request handling.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Guard.html" title='rocket_cors::Guard struct'>Guard</a></td><td class='docblock-short'><p>A <a href="https://rocket.rs/guide/requests/#request-guards">request guard</a> to check CORS headers
+before a route is run. Will not execute the route if checks fail.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ManualResponder.html" title='rocket_cors::ManualResponder struct'>ManualResponder</a></td><td class='docblock-short'><p>A Manual Responder used in the &quot;truly manual&quot; mode of operation.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Method.html" title='rocket_cors::Method struct'>Method</a></td><td class='docblock-short'><p>A wrapper type around <code>rocket::http::Method</code> to support serialization and deserialization</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Origins.html" title='rocket_cors::Origins struct'>Origins</a></td><td class='docblock-short'><p>Origins that are allowed to make CORS requests.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Responder.html" title='rocket_cors::Responder struct'>Responder</a></td><td class='docblock-short'><p>A <a href="https://rocket.rs/guide/responses/#responder"><code>Responder</code></a> which will simply wraps another
+<code>Responder</code> with CORS headers.</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table><tr class='module-item'><td><a class="enum" href="enum.AllOrSome.html" title='rocket_cors::AllOrSome enum'>AllOrSome</a></td><td class='docblock-short'><p>An enum signifying that some of type T is allowed, or <code>All</code> (everything is allowed).</p>
+</td></tr><tr class='module-item'><td><a class="enum" href="enum.Error.html" title='rocket_cors::Error enum'>Error</a></td><td class='docblock-short'><p>Errors during operations</p>
+</td></tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table><tr class='module-item'><td><a class="fn" href="fn.catch_all_options_routes.html" title='rocket_cors::catch_all_options_routes fn'>catch_all_options_routes</a></td><td class='docblock-short'><p>Returns &quot;catch all&quot; OPTIONS routes that you can mount to catch all OPTIONS request. Only works
+if you have put a <code>Cors</code> struct into Rocket's managed state.</p>
+</td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table><tr class='module-item'><td><a class="type" href="type.AllowedHeaders.html" title='rocket_cors::AllowedHeaders type'>AllowedHeaders</a></td><td class='docblock-short'><p>A list of allowed headers</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.AllowedMethods.html" title='rocket_cors::AllowedMethods type'>AllowedMethods</a></td><td class='docblock-short'><p>A list of allowed methods</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.AllowedOrigins.html" title='rocket_cors::AllowedOrigins type'>AllowedOrigins</a></td><td class='docblock-short'><p>A list of allowed origins. Either Some origins are allowed, or all origins are allowed.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "rocket_cors";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>
