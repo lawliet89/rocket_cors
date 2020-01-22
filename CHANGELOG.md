@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.5.2 (2020-XX-XX)
+
+### Improvements
+
+- Add a builder methods for `CorsOptions` (#75)
+
 ## 0.5.1 (2019-11-13)
 
 There are no new features.
