@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.5.2 (2020-XX-XX)
+## 0.5.2 (2020-03-18)
 
 ### Improvements
 

@@ -1,6 +1,6 @@
 //! Fairing implementation
 
-use ::log::{error, info, log};
+use ::log::{error, info};
 use rocket::http::{self, uri::Origin, Status};
 use rocket::{self, error_, info_, log_, Outcome, Request};
 

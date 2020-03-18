@@ -280,7 +280,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use ::log::{debug, error, info, log};
+use ::log::{debug, error, info};
 use regex::RegexSet;
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
