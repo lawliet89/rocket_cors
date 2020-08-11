@@ -5,12 +5,9 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 use rocket_cors;
 
-use std::str::FromStr;
-
 use rocket::http::hyper;
 use rocket::http::{Header, Method, Status};
-use rocket::local::Client;
-use rocket::response::Body;
+use rocket::local::blocking::Client;
 use rocket::response::Responder;
 use rocket::{get, options, routes};
 
@@ -18,13 +15,13 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions, Guard};
 
 /// The "usual" app route
 #[get("/")]
-fn app(cors: Guard<'_>) -> rocket_cors::Responder<'_, &str> {
+fn app(cors: Guard<'_>) -> rocket_cors::Responder<'_, '_, &str> {
     cors.responder("Hello CORS!")
 }
 
 /// The special "ping" route
 #[get("/ping")]
-fn ping<'r>() -> impl Responder<'r> {
+fn ping<'r, 'o: 'r>() -> impl Responder<'r, 'o> {
     let cors = cors_options_all().to_cors()?;
     cors.respond_owned(|guard| guard.responder("Pong!"))
 }
@@ -33,7 +30,7 @@ fn ping<'r>() -> impl Responder<'r> {
 /// that is not in Rocket's managed state.
 /// These routes can just return the unit type `()`
 #[options("/ping")]
-fn ping_options<'r>() -> impl Responder<'r> {
+fn ping_options<'r, 'o: 'r>() -> impl Responder<'r, 'o> {
     let cors = cors_options_all().to_cors()?;
     cors.respond_owned(|guard| guard.responder(()))
 }
@@ -73,16 +70,15 @@ fn smoke_test() {
     let client = Client::new(rocket()).unwrap();
 
     // `Options` pre-flight checks
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap()
-        ]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Authorization",
+    );
     let req = client
         .options("/")
         .header(origin_header)
@@ -93,37 +89,34 @@ fn smoke_test() {
     assert!(response.status().class().is_success());
 
     // "Actual" request
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
-    let mut response = req.dispatch();
+    let response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(Body::into_string);
-    assert_eq!(body_str, Some("Hello CORS!".to_string()));
-
     let origin_header = response
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
     assert_eq!("https://www.acme.com", origin_header);
+    let body_str = response.into_string();
+    assert_eq!(body_str, Some("Hello CORS!".to_string()));
 }
 
 #[test]
 fn cors_options_check() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap()
-        ]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Authorization",
+    );
     let req = client
         .options("/")
         .header(origin_header)
@@ -144,21 +137,19 @@ fn cors_options_check() {
 fn cors_get_check() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
-    let mut response = req.dispatch();
+    let response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(Body::into_string);
-    assert_eq!(body_str, Some("Hello CORS!".to_string()));
-
     let origin_header = response
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
     assert_eq!("https://www.acme.com", origin_header);
+    let body_str = response.into_string();
+    assert_eq!(body_str, Some("Hello CORS!".to_string()));
 }
 
 /// This test is to check that non CORS compliant requests to GET should still work. (i.e. curl)
@@ -169,9 +160,9 @@ fn cors_get_no_origin() {
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(authorization);
 
-    let mut response = req.dispatch();
+    let response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(Body::into_string);
+    let body_str = response.into_string();
     assert_eq!(body_str, Some("Hello CORS!".to_string()));
 }
 
@@ -179,16 +170,15 @@ fn cors_get_no_origin() {
 fn cors_options_bad_origin() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap()
-        ]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.bad-origin.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Authorization",
+    );
     let req = client
         .options("/")
         .header(origin_header)
@@ -203,14 +193,14 @@ fn cors_options_bad_origin() {
 fn cors_options_missing_origin() {
     let client = Client::new(rocket()).unwrap();
 
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap()
-        ]);
-    let request_headers = Header::from(request_headers);
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Authorization",
+    );
     let req = client
         .options("/")
         .header(method_header)
@@ -228,16 +218,15 @@ fn cors_options_missing_origin() {
 fn cors_options_bad_request_method() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Post,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap()
-        ]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::POST.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Authorization",
+    );
     let req = client
         .options("/")
         .header(origin_header)
@@ -256,14 +245,15 @@ fn cors_options_bad_request_method() {
 fn cors_options_bad_request_header() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers =
-        hyper::header::AccessControlRequestHeaders(vec![FromStr::from_str("Foobar").unwrap()]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "Foobar",
+    );
     let req = client
         .options("/")
         .header(origin_header)
@@ -282,8 +272,7 @@ fn cors_options_bad_request_header() {
 fn cors_get_bad_origin() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap());
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.bad-origin.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
@@ -300,11 +289,11 @@ fn cors_get_bad_origin() {
 fn cors_options_ping_check() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.example.com");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
 
     let req = client
         .options("/ping")
@@ -326,19 +315,17 @@ fn cors_options_ping_check() {
 fn cors_get_ping_check() {
     let client = Client::new(rocket()).unwrap();
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.example.com");
 
     let req = client.get("/ping").header(origin_header);
 
-    let mut response = req.dispatch();
+    let response = req.dispatch();
     assert!(response.status().class().is_success());
-    let body_str = response.body().and_then(Body::into_string);
-    assert_eq!(body_str, Some("Pong!".to_string()));
-
     let origin_header = response
         .headers()
         .get_one("Access-Control-Allow-Origin")
         .expect("to exist");
     assert_eq!("https://www.example.com", origin_header);
+    let body_str = response.into_string();
+    assert_eq!(body_str, Some("Pong!".to_string()));
 }

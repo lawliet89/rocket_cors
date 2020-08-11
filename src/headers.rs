@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use rocket::http::Status;
 use rocket::request::{self, FromRequest};
-use rocket::{self, Outcome};
+use rocket::{self, outcome::Outcome};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 use unicase::UniCase;
@@ -91,6 +91,24 @@ impl Origin {
             Origin::Opaque(_) => false,
         }
     }
+
+    /// Derives an instance of `Self` from the incoming request metadata.
+    ///
+    /// If the derivation is successful, an outcome of `Success` is returned. If
+    /// the derivation fails in an unrecoverable fashion, `Failure` is returned.
+    /// `Forward` is returned to indicate that the request should be forwarded
+    /// to other matching routes, if any.
+    pub fn from_request_sync(
+        request: &'_ rocket::Request<'_>,
+    ) -> request::Outcome<Self, crate::Error> {
+        match request.headers().get_one("Origin") {
+            Some(origin) => match Self::from_str(origin) {
+                Ok(origin) => Outcome::Success(origin),
+                Err(e) => Outcome::Failure((Status::BadRequest, e)),
+            },
+            None => Outcome::Forward(()),
+        }
+    }
 }
 
 impl FromStr for Origin {
@@ -118,19 +136,17 @@ impl fmt::Display for Origin {
     }
 }
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for Origin {
     type Error = crate::Error;
 
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
-        match request.headers().get_one("Origin") {
-            Some(origin) => match Self::from_str(origin) {
-                Ok(origin) => Outcome::Success(origin),
-                Err(e) => Outcome::Failure((Status::BadRequest, e)),
-            },
-            None => Outcome::Forward(()),
-        }
+    async fn from_request(
+        request: &'a rocket::Request<'r>,
+    ) -> request::Outcome<Self, crate::Error> {
+        Origin::from_request_sync(request)
     }
 }
+
 /// The `Access-Control-Request-Method` request header
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
@@ -138,18 +154,16 @@ impl<'a, 'r> FromRequest<'a, 'r> for Origin {
 #[derive(Debug)]
 pub struct AccessControlRequestMethod(pub crate::Method);
 
-impl FromStr for AccessControlRequestMethod {
-    type Err = ();
-
-    fn from_str(method: &str) -> Result<Self, Self::Err> {
-        Ok(AccessControlRequestMethod(crate::Method::from_str(method)?))
-    }
-}
-
-impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
-    type Error = crate::Error;
-
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
+impl AccessControlRequestMethod {
+    /// Derives an instance of `Self` from the incoming request metadata.
+    ///
+    /// If the derivation is successful, an outcome of `Success` is returned. If
+    /// the derivation fails in an unrecoverable fashion, `Failure` is returned.
+    /// `Forward` is returned to indicate that the request should be forwarded
+    /// to other matching routes, if any.
+    pub fn from_request_sync(
+        request: &'_ rocket::Request<'_>,
+    ) -> request::Outcome<Self, crate::Error> {
         match request.headers().get_one("Access-Control-Request-Method") {
             Some(request_method) => match Self::from_str(request_method) {
                 Ok(request_method) => Outcome::Success(request_method),
@@ -160,12 +174,53 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
     }
 }
 
+impl FromStr for AccessControlRequestMethod {
+    type Err = ();
+
+    fn from_str(method: &str) -> Result<Self, Self::Err> {
+        Ok(AccessControlRequestMethod(crate::Method::from_str(method)?))
+    }
+}
+
+#[rocket::async_trait]
+impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
+    type Error = crate::Error;
+
+    async fn from_request(
+        request: &'a rocket::Request<'r>,
+    ) -> request::Outcome<Self, crate::Error> {
+        AccessControlRequestMethod::from_request_sync(request)
+    }
+}
+
 /// The `Access-Control-Request-Headers` request header
 ///
 /// You can use this as a rocket [Request Guard](https://rocket.rs/guide/requests/#request-guards)
 /// to ensure that the header is passed in correctly.
 #[derive(Eq, PartialEq, Debug)]
 pub struct AccessControlRequestHeaders(pub HeaderFieldNamesSet);
+
+impl AccessControlRequestHeaders {
+    /// Derives an instance of `Self` from the incoming request metadata.
+    ///
+    /// If the derivation is successful, an outcome of `Success` is returned. If
+    /// the derivation fails in an unrecoverable fashion, `Failure` is returned.
+    /// `Forward` is returned to indicate that the request should be forwarded
+    /// to other matching routes, if any.
+    pub fn from_request_sync(
+        request: &'_ rocket::Request<'_>,
+    ) -> request::Outcome<Self, crate::Error> {
+        match request.headers().get_one("Access-Control-Request-Headers") {
+            Some(request_headers) => match Self::from_str(request_headers) {
+                Ok(request_headers) => Outcome::Success(request_headers),
+                Err(()) => {
+                    unreachable!("`AccessControlRequestHeaders::from_str` should never fail")
+                }
+            },
+            None => Outcome::Forward(()),
+        }
+    }
+}
 
 /// Will never fail
 impl FromStr for AccessControlRequestHeaders {
@@ -185,19 +240,14 @@ impl FromStr for AccessControlRequestHeaders {
     }
 }
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
     type Error = crate::Error;
 
-    fn from_request(request: &'a rocket::Request<'r>) -> request::Outcome<Self, crate::Error> {
-        match request.headers().get_one("Access-Control-Request-Headers") {
-            Some(request_headers) => match Self::from_str(request_headers) {
-                Ok(request_headers) => Outcome::Success(request_headers),
-                Err(()) => {
-                    unreachable!("`AccessControlRequestHeaders::from_str` should never fail")
-                }
-            },
-            None => Outcome::Forward(()),
-        }
+    async fn from_request(
+        request: &'a rocket::Request<'r>,
+    ) -> request::Outcome<Self, crate::Error> {
+        AccessControlRequestHeaders::from_request_sync(request)
     }
 }
 
@@ -207,7 +257,8 @@ mod tests {
 
     use rocket;
     use rocket::http::hyper;
-    use rocket::local::Client;
+    use rocket::http::Header;
+    use rocket::local::blocking::Client;
 
     use super::*;
 
@@ -277,11 +328,10 @@ mod tests {
         let client = make_client();
         let mut request = client.get("/");
 
-        let origin = hyper::header::Origin::new("https", "www.example.com", None);
+        let origin = Header::new(hyper::header::ORIGIN.as_str(), "https://www.example.com");
         request.add_header(origin);
 
-        let outcome: request::Outcome<Origin, crate::Error> =
-            FromRequest::from_request(request.inner());
+        let outcome = Origin::from_request_sync(request.inner());
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         assert_eq!(
             "https://www.example.com",
@@ -313,10 +363,12 @@ mod tests {
     fn request_method_parsing() {
         let client = make_client();
         let mut request = client.get("/");
-        let method = hyper::header::AccessControlRequestMethod(hyper::Method::Get);
+        let method = Header::new(
+            hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
         request.add_header(method);
-        let outcome: request::Outcome<AccessControlRequestMethod, crate::Error> =
-            FromRequest::from_request(request.inner());
+        let outcome = AccessControlRequestMethod::from_request_sync(request.inner());
 
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         let AccessControlRequestMethod(parsed_method) = parsed_header;
@@ -337,13 +389,12 @@ mod tests {
     fn request_headers_parsing() {
         let client = make_client();
         let mut request = client.get("/");
-        let headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("accept-language").unwrap(),
-            FromStr::from_str("date").unwrap(),
-        ]);
+        let headers = Header::new(
+            hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+            "accept-language, date",
+        );
         request.add_header(headers);
-        let outcome: request::Outcome<AccessControlRequestHeaders, crate::Error> =
-            FromRequest::from_request(request.inner());
+        let outcome = AccessControlRequestHeaders::from_request_sync(request.inner());
 
         let parsed_header = assert_matches!(outcome, Outcome::Success(s), s);
         let AccessControlRequestHeaders(parsed_headers) = parsed_header;

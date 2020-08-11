@@ -1,12 +1,10 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
 #![feature(proc_macro_hygiene, decl_macro)]
 use std::ops::Deref;
-use std::str::FromStr;
 
 use rocket::http::hyper;
 use rocket::http::Header;
-use rocket::local::Client;
-use rocket::response::Body;
+use rocket::local::blocking::Client;
 use rocket::{get, routes};
 use rocket_cors::headers::*;
 
@@ -32,30 +30,27 @@ fn request_headers_round_trip_smoke_test() {
     let rocket = rocket::ignite().mount("/", routes![request_headers]);
     let client = Client::new(rocket).expect("A valid Rocket client");
 
-    let origin_header =
-        Header::from(hyper::header::Origin::from_str("https://foo.bar.xyz").unwrap());
-    let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::Method::Get,
-    ));
-    let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-        FromStr::from_str("accept-language").unwrap(),
-        FromStr::from_str("X-Ping").unwrap(),
-    ]);
-    let request_headers = Header::from(request_headers);
+    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://foo.bar.xyz");
+    let method_header = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        hyper::Method::GET.as_str(),
+    );
+    let request_headers = Header::new(
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        "accept-language, X-Ping",
+    );
     let req = client
         .get("/request_headers")
         .header(origin_header)
         .header(method_header)
         .header(request_headers);
-    let mut response = req.dispatch();
+    let response = req.dispatch();
 
     assert!(response.status().class().is_success());
-    let body_str = response
-        .body()
-        .and_then(Body::into_string)
-        .expect("Non-empty body");
+    let body_str = response.into_string();
     let expected_body = r#"https://foo.bar.xyz
 GET
-X-Ping, accept-language"#;
-    assert_eq!(expected_body, body_str);
+X-Ping, accept-language"#
+        .to_string();
+    assert_eq!(body_str, Some(expected_body));
 }
