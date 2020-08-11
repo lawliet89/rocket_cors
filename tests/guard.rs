@@ -1,10 +1,10 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
 #![feature(proc_macro_hygiene, decl_macro)]
-use hyper;
 use rocket_cors as cors;
 
 use std::str::FromStr;
 
+use rocket::http::hyper;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::Client;
@@ -95,7 +95,7 @@ fn smoke_test() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -138,7 +138,7 @@ fn cors_options_catch_all_check() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -170,7 +170,7 @@ fn cors_options_catch_all_check_other_routes() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -242,7 +242,7 @@ fn cors_options_bad_origin() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.bad-origin.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -269,7 +269,7 @@ fn cors_options_missing_origin() {
     let client = Client::new(rocket).unwrap();
 
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -297,7 +297,7 @@ fn cors_options_bad_request_method() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Post,
+        hyper::Method::Post,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![
@@ -326,7 +326,7 @@ fn cors_options_bad_request_header() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![FromStr::from_str("Foobar").unwrap()]);
@@ -394,7 +394,7 @@ fn overridden_options_routes_are_used() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers =
         hyper::header::AccessControlRequestHeaders(vec![

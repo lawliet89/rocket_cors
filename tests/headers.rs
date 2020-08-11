@@ -1,10 +1,9 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
 #![feature(proc_macro_hygiene, decl_macro)]
-use hyper;
-
 use std::ops::Deref;
 use std::str::FromStr;
 
+use rocket::http::hyper;
 use rocket::http::Header;
 use rocket::local::Client;
 use rocket::response::Body;
@@ -36,7 +35,7 @@ fn request_headers_round_trip_smoke_test() {
     let origin_header =
         Header::from(hyper::header::Origin::from_str("https://foo.bar.xyz").unwrap());
     let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-        hyper::method::Method::Get,
+        hyper::Method::Get,
     ));
     let request_headers = hyper::header::AccessControlRequestHeaders(vec![
         FromStr::from_str("accept-language").unwrap(),

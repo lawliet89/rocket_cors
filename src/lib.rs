@@ -2018,6 +2018,7 @@ fn catch_all_options_route_handler<'r>(
 mod tests {
     use std::str::FromStr;
 
+    use rocket::http::hyper;
     use rocket::http::Header;
     use rocket::local::Client;
     #[cfg(feature = "serialization")]
@@ -2575,7 +2576,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2610,7 +2611,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2642,7 +2643,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2690,7 +2691,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Post,
+            hyper::Method::Post,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2716,7 +2717,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers = hyper::header::AccessControlRequestHeaders(vec![
             FromStr::from_str("Authorization").unwrap(),
@@ -2802,7 +2803,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2842,7 +2843,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![
@@ -2882,7 +2883,7 @@ mod tests {
         let origin_header =
             Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
         let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
+            hyper::Method::Get,
         ));
         let request_headers =
             hyper::header::AccessControlRequestHeaders(vec![

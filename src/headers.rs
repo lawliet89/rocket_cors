@@ -205,8 +205,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
 mod tests {
     use std::str::FromStr;
 
-    use hyper;
     use rocket;
+    use rocket::http::hyper;
     use rocket::local::Client;
 
     use super::*;
@@ -313,7 +313,7 @@ mod tests {
     fn request_method_parsing() {
         let client = make_client();
         let mut request = client.get("/");
-        let method = hyper::header::AccessControlRequestMethod(hyper::method::Method::Get);
+        let method = hyper::header::AccessControlRequestMethod(hyper::Method::Get);
         request.add_header(method);
         let outcome: request::Outcome<AccessControlRequestMethod, crate::Error> =
             FromRequest::from_request(request.inner());
