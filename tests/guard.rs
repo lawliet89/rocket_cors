@@ -9,13 +9,19 @@ use rocket::local::blocking::Client;
 use rocket::{get, options, routes};
 use rocket::{Response, State};
 
+static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
+static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+    hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+    hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+
 #[get("/")]
 fn cors(cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
     cors.responder("Hello CORS")
 }
 
 #[get("/panic")]
-fn panicking_route(_cors: cors::Guard<'_>) {
+fn panicking_route(_cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
     panic!("This route will panic");
 }
 
@@ -92,15 +98,12 @@ fn smoke_test() {
     let client = Client::new(rocket).unwrap();
 
     // `Options` pre-flight checks
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/")
         .header(origin_header)
@@ -111,7 +114,7 @@ fn smoke_test() {
     assert!(response.status().class().is_success());
 
     // "Actual" request
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
@@ -132,15 +135,12 @@ fn cors_options_catch_all_check() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/")
         .header(origin_header)
@@ -163,15 +163,12 @@ fn cors_options_catch_all_check_other_routes() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/response/unit")
         .header(origin_header)
@@ -193,7 +190,7 @@ fn cors_get_check() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
@@ -232,15 +229,12 @@ fn cors_options_bad_origin() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.bad-origin.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/")
         .header(origin_header)
@@ -261,13 +255,10 @@ fn cors_options_missing_origin() {
     let client = Client::new(rocket).unwrap();
 
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/")
         .header(method_header)
@@ -286,15 +277,12 @@ fn cors_options_bad_request_method() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::POST.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/")
         .header(origin_header)
@@ -314,15 +302,12 @@ fn cors_options_bad_request_header() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Foobar",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Foobar");
     let req = client
         .options("/")
         .header(origin_header)
@@ -342,7 +327,7 @@ fn cors_get_bad_origin() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.bad-origin.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
@@ -362,7 +347,7 @@ fn routes_failing_checks_are_not_executed() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.bad-origin.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(origin_header).header(authorization);
 
@@ -381,15 +366,12 @@ fn overridden_options_routes_are_used() {
     let rocket = make_rocket();
     let client = Client::new(rocket).unwrap();
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://www.acme.com");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
-    let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
-        "Authorization",
-    );
+    let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
         .options("/manual")
         .header(origin_header)

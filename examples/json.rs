@@ -4,7 +4,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 use rocket_cors as cors;
-use serde_json;
 
 use crate::cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use rocket::http::Method;

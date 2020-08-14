@@ -12,9 +12,6 @@ use rocket::{self, outcome::Outcome};
 use serde_derive::{Deserialize, Serialize};
 use unicase::UniCase;
 
-#[cfg(feature = "serialization")]
-use unicase_serde;
-
 /// A case insensitive header name
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
@@ -255,10 +252,15 @@ impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
 mod tests {
     use std::str::FromStr;
 
-    use rocket;
     use rocket::http::hyper;
     use rocket::http::Header;
     use rocket::local::blocking::Client;
+
+    static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
+    static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+    static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     use super::*;
 
@@ -328,7 +330,7 @@ mod tests {
         let client = make_client();
         let mut request = client.get("/");
 
-        let origin = Header::new(hyper::header::ORIGIN.as_str(), "https://www.example.com");
+        let origin = Header::new(ORIGIN.as_str(), "https://www.example.com");
         request.add_header(origin);
 
         let outcome = Origin::from_request_sync(request.inner());
@@ -364,7 +366,7 @@ mod tests {
         let client = make_client();
         let mut request = client.get("/");
         let method = Header::new(
-            hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
             hyper::Method::GET.as_str(),
         );
         request.add_header(method);
@@ -390,7 +392,7 @@ mod tests {
         let client = make_client();
         let mut request = client.get("/");
         let headers = Header::new(
-            hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+            ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
             "accept-language, date",
         );
         request.add_header(headers);

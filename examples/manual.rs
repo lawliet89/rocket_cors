@@ -1,7 +1,4 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-use rocket;
-use rocket_cors;
-
 use std::io::Cursor;
 
 use rocket::error::Error;

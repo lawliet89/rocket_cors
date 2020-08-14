@@ -4,9 +4,6 @@
 //! `ping` route that you want to allow all Origins to access.
 
 #![feature(proc_macro_hygiene, decl_macro)]
-use rocket;
-use rocket_cors;
-
 use rocket::error::Error;
 use rocket::http::Method;
 use rocket::response::Responder;

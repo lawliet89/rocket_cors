@@ -8,6 +8,12 @@ use rocket::local::blocking::Client;
 use rocket::{get, routes};
 use rocket_cors::headers::*;
 
+static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
+static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+    hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+    hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+
 #[get("/request_headers")]
 fn request_headers(
     origin: Origin,
@@ -30,13 +36,13 @@ fn request_headers_round_trip_smoke_test() {
     let rocket = rocket::ignite().mount("/", routes![request_headers]);
     let client = Client::new(rocket).expect("A valid Rocket client");
 
-    let origin_header = Header::new(hyper::header::ORIGIN.as_str(), "https://foo.bar.xyz");
+    let origin_header = Header::new(ORIGIN.as_str(), "https://foo.bar.xyz");
     let method_header = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+        ACCESS_CONTROL_REQUEST_METHOD.as_str(),
         hyper::Method::GET.as_str(),
     );
     let request_headers = Header::new(
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+        ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
         "accept-language, X-Ping",
     );
     let req = client
