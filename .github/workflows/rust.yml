@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         rust:
+          - stable
           - nightly
-          - nightly-2019-05-21  # MSRV
         os:
           - ubuntu-latest
           - windows-latest
@@ -21,6 +21,8 @@ jobs:
         cargo_flags:
           - "--all-features"
           - "--no-default-features"
+
+      fail-fast: false
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -34,9 +36,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
-
-      - name: Remove Rust Toolchain file
-        run: rm rust-toolchain
 
       - uses: actions-rs/cargo@v1
         name: Clippy Lint
