@@ -1,5 +1,4 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
-#![feature(proc_macro_hygiene, decl_macro)]
 use rocket_cors as cors;
 
 use rocket::http::hyper;

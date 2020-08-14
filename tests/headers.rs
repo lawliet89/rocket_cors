@@ -1,5 +1,4 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
-#![feature(proc_macro_hygiene, decl_macro)]
 use std::ops::Deref;
 
 use rocket::http::hyper;

@@ -1,4 +1,3 @@
-#![feature(proc_macro_hygiene, decl_macro)]
 use std::error::Error;
 
 use rocket::http::Method;

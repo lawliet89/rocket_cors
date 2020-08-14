@@ -2,7 +2,6 @@
 //!
 //! In this example, you typically have an application wide `Cors` struct except for one specific
 //! `ping` route that you want to allow all Origins to access.
-#![feature(proc_macro_hygiene, decl_macro)]
 use rocket::http::hyper;
 use rocket::http::{Header, Method, Status};
 use rocket::local::blocking::Client;

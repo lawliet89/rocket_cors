@@ -1,5 +1,4 @@
 //! This crate tests using `rocket_cors` using Fairings
-#![feature(proc_macro_hygiene, decl_macro)]
 use rocket::http::hyper;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
