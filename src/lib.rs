@@ -261,7 +261,7 @@ See the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/
     missing_debug_implementations,
     unknown_lints,
     unsafe_code,
-    intra_doc_link_resolution_failure
+    broken_intra_doc_links
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
@@ -285,7 +285,7 @@ use regex::RegexSet;
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{debug_, error_, info_, log_, Outcome, State};
+use rocket::{debug_, error_, info_, log_, outcome::Outcome, State};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -417,8 +417,8 @@ impl error::Error for Error {
     }
 }
 
-impl<'r> response::Responder<'r> for Error {
-    fn respond_to(self, _: &Request<'_>) -> Result<response::Response<'r>, Status> {
+impl<'r, 'o: 'r> response::Responder<'r, 'o> for Error {
+    fn respond_to(self, _: &Request<'_>) -> Result<response::Response<'o>, Status> {
         error_!("CORS Error: {}", self);
         Err(self.status())
     }
@@ -1201,7 +1201,7 @@ impl CorsOptions {
     }
 
     /// Sets the rank of the fairing route
-    pub fn fairing_route_rank(mut self, fairing_route_rank: isize) ->  Self {
+    pub fn fairing_route_rank(mut self, fairing_route_rank: isize) -> Self {
         self.fairing_route_rank = fairing_route_rank;
         self
     }
@@ -1256,10 +1256,13 @@ impl Cors {
     /// passed in to include the CORS headers.
     ///
     /// See the documentation at the [crate root](index.html) for usage information.
-    pub fn respond_owned<'r, F, R>(self, handler: F) -> Result<ManualResponder<'r, F, R>, Error>
+    pub fn respond_owned<'r, 'o: 'r, F, R>(
+        self,
+        handler: F,
+    ) -> Result<ManualResponder<'r, F, R>, Error>
     where
         F: FnOnce(Guard<'r>) -> R + 'r,
-        R: response::Responder<'r>,
+        R: response::Responder<'r, 'o>,
     {
         Ok(ManualResponder::new(Cow::Owned(self), handler))
     }
@@ -1276,13 +1279,13 @@ impl Cors {
     /// passed in to include the CORS headers.
     ///
     /// See the documentation at the [crate root](index.html) for usage information.
-    pub fn respond_borrowed<'r, F, R>(
+    pub fn respond_borrowed<'r, 'o: 'r, F, R>(
         &'r self,
         handler: F,
     ) -> Result<ManualResponder<'r, F, R>, Error>
     where
         F: FnOnce(Guard<'r>) -> R + 'r,
-        R: response::Responder<'r>,
+        R: response::Responder<'r, 'o>,
     {
         Ok(ManualResponder::new(Cow::Borrowed(self), handler))
     }
@@ -1375,7 +1378,10 @@ impl Response {
 
     /// Consumes the `Response` and return  a `Responder` that wraps a
     /// provided `rocket:response::Responder` with CORS headers
-    pub fn responder<'r, R: response::Responder<'r>>(self, responder: R) -> Responder<'r, R> {
+    pub fn responder<'r, 'o: 'r, R: response::Responder<'r, 'o>>(
+        self,
+        responder: R,
+    ) -> Responder<'r, 'o, R> {
         Responder::new(responder, self)
     }
 
@@ -1486,7 +1492,7 @@ pub struct Guard<'r> {
     marker: PhantomData<&'r Response>,
 }
 
-impl<'r> Guard<'r> {
+impl<'r, 'o: 'r> Guard<'r> {
     fn new(response: Response) -> Self {
         Self {
             response,
@@ -1496,7 +1502,7 @@ impl<'r> Guard<'r> {
 
     /// Consumes the Guard and return  a `Responder` that wraps a
     /// provided `rocket:response::Responder` with CORS headers
-    pub fn responder<R: response::Responder<'r>>(self, responder: R) -> Responder<'r, R> {
+    pub fn responder<R: response::Responder<'r, 'o>>(self, responder: R) -> Responder<'r, 'o, R> {
         self.response.responder(responder)
     }
 
@@ -1509,11 +1515,12 @@ impl<'r> Guard<'r> {
     }
 }
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
     type Error = Error;
 
-    fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
-        let options = match request.guard::<State<'_, Cors>>() {
+    async fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
+        let options = match request.guard::<State<'_, Cors>>().await {
             Outcome::Success(options) => options,
             _ => {
                 let error = Error::MissingCorsInRocketState;
@@ -1545,13 +1552,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
 ///
 /// See the documentation at the [crate root](index.html) for usage information.
 #[derive(Debug)]
-pub struct Responder<'r, R> {
+pub struct Responder<'r, 'o, R> {
     responder: R,
     cors_response: Response,
-    marker: PhantomData<dyn response::Responder<'r>>,
+    marker: PhantomData<dyn response::Responder<'r, 'o>>,
 }
 
-impl<'r, R: response::Responder<'r>> Responder<'r, R> {
+impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> Responder<'r, 'o, R> {
     fn new(responder: R, cors_response: Response) -> Self {
         Self {
             responder,
@@ -1561,15 +1568,17 @@ impl<'r, R: response::Responder<'r>> Responder<'r, R> {
     }
 
     /// Respond to a request
-    fn respond(self, request: &Request<'_>) -> response::Result<'r> {
+    fn respond(self, request: &'r Request<'_>) -> response::Result<'o> {
         let mut response = self.responder.respond_to(request)?; // handle status errors?
         self.cors_response.merge(&mut response);
         Ok(response)
     }
 }
 
-impl<'r, R: response::Responder<'r>> response::Responder<'r> for Responder<'r, R> {
-    fn respond_to(self, request: &Request<'_>) -> response::Result<'r> {
+impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> response::Responder<'r, 'o>
+    for Responder<'r, 'o, R>
+{
+    fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
         self.respond(request)
     }
 }
@@ -1583,10 +1592,10 @@ pub struct ManualResponder<'r, F, R> {
     marker: PhantomData<R>,
 }
 
-impl<'r, F, R> ManualResponder<'r, F, R>
+impl<'r, 'o: 'r, F, R> ManualResponder<'r, F, R>
 where
     F: FnOnce(Guard<'r>) -> R + 'r,
-    R: response::Responder<'r>,
+    R: response::Responder<'r, 'o>,
 {
     /// Create a new manual responder by passing in either a borrowed or owned `Cors` option.
     ///
@@ -1607,12 +1616,12 @@ where
     }
 }
 
-impl<'r, F, R> response::Responder<'r> for ManualResponder<'r, F, R>
+impl<'r, 'o: 'r, F, R> response::Responder<'r, 'o> for ManualResponder<'r, F, R>
 where
     F: FnOnce(Guard<'r>) -> R + 'r,
-    R: response::Responder<'r>,
+    R: response::Responder<'r, 'o>,
 {
-    fn respond_to(self, request: &Request<'_>) -> response::Result<'r> {
+    fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
         let guard = match self.build_guard(request) {
             Ok(guard) => guard,
             Err(err) => {
@@ -1759,7 +1768,7 @@ fn validate_allowed_headers(
 
 /// Gets the `Origin` request header from the request
 fn origin(request: &Request<'_>) -> Result<Option<Origin>, Error> {
-    match Origin::from_request(request) {
+    match Origin::from_request_sync(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(origin) => Ok(Some(origin)),
         Outcome::Failure((_, err)) => Err(err),
@@ -1768,7 +1777,7 @@ fn origin(request: &Request<'_>) -> Result<Option<Origin>, Error> {
 
 /// Gets the `Access-Control-Request-Method` request header from the request
 fn request_method(request: &Request<'_>) -> Result<Option<AccessControlRequestMethod>, Error> {
-    match AccessControlRequestMethod::from_request(request) {
+    match AccessControlRequestMethod::from_request_sync(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(method) => Ok(Some(method)),
         Outcome::Failure((_, err)) => Err(err),
@@ -1777,7 +1786,7 @@ fn request_method(request: &Request<'_>) -> Result<Option<AccessControlRequestMe
 
 /// Gets the `Access-Control-Request-Headers` request header from the request
 fn request_headers(request: &Request<'_>) -> Result<Option<AccessControlRequestHeaders>, Error> {
-    match AccessControlRequestHeaders::from_request(request) {
+    match AccessControlRequestHeaders::from_request_sync(request) {
         Outcome::Forward(()) => Ok(None),
         Outcome::Success(geaders) => Ok(Some(geaders)),
         Outcome::Failure((_, err)) => Err(err),
@@ -1984,47 +1993,59 @@ pub fn catch_all_options_routes() -> Vec<rocket::Route> {
             isize::max_value(),
             http::Method::Options,
             "/",
-            catch_all_options_route_handler,
+            CatchAllOptionsRouteHandler {},
         ),
         rocket::Route::ranked(
             isize::max_value(),
             http::Method::Options,
             "/<catch_all_options_route..>",
-            catch_all_options_route_handler,
+            CatchAllOptionsRouteHandler {},
         ),
     ]
 }
 
 /// Handler for the "catch all options route"
-fn catch_all_options_route_handler<'r>(
-    request: &'r Request<'_>,
-    _: rocket::Data,
-) -> rocket::handler::Outcome<'r> {
-    let guard: Guard<'_> = match request.guard() {
-        Outcome::Success(guard) => guard,
-        Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
-        Outcome::Forward(()) => unreachable!("Should not be reachable"),
-    };
+#[derive(Clone)]
+struct CatchAllOptionsRouteHandler {}
 
-    info_!(
-        "\"Catch all\" handling of CORS `OPTIONS` preflight for request {}",
-        request
-    );
+#[rocket::async_trait]
+impl rocket::handler::Handler for CatchAllOptionsRouteHandler {
+    async fn handle<'r, 's: 'r>(
+        &'s self,
+        request: &'r Request<'_>,
+        _: rocket::Data,
+    ) -> rocket::handler::Outcome<'r> {
+        let guard: Guard<'_> = match request.guard().await {
+            Outcome::Success(guard) => guard,
+            Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
+            Outcome::Forward(()) => unreachable!("Should not be reachable"),
+        };
 
-    rocket::handler::Outcome::from(request, guard.responder(()))
+        info_!(
+            "\"Catch all\" handling of CORS `OPTIONS` preflight for request {}",
+            request
+        );
+
+        rocket::handler::Outcome::from(request, guard.responder(()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
+    use rocket::http::hyper;
     use rocket::http::Header;
-    use rocket::local::Client;
-    #[cfg(feature = "serialization")]
-    use serde_json;
+    use rocket::local::blocking::Client;
 
     use super::*;
     use crate::http::Method;
+
+    static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
+    static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+        hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+    static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     fn to_parsed_origin<S: AsRef<str>>(origin: S) -> Result<Origin, Error> {
         Origin::from_str(origin.as_ref())
@@ -2083,10 +2104,20 @@ mod tests {
         let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
         let cors_options_from_builder = CorsOptions::default()
             .allowed_origins(allowed_origins)
-            .allowed_methods(vec![http::Method::Get].into_iter().map(From::from).collect())
+            .allowed_methods(
+                vec![http::Method::Get]
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+            )
             .allowed_headers(AllowedHeaders::some(&[&"Authorization", "Accept"]))
             .allow_credentials(true)
-            .expose_headers(["Content-Type", "X-Custom"].iter().map(|s| (*s).to_string()).collect());
+            .expose_headers(
+                ["Content-Type", "X-Custom"]
+                    .iter()
+                    .map(|s| (*s).to_string())
+                    .collect(),
+            );
         assert_eq!(cors_options_from_builder, make_cors_options());
     }
 
@@ -2507,11 +2538,12 @@ mod tests {
     fn response_build_removes_existing_cors_headers_and_keeps_others() {
         use std::io::Cursor;
 
+        let body = "Brewing the best coffee!";
         let original = response::Response::build()
             .status(Status::ImATeapot)
             .raw_header("X-Teapot-Make", "Rocket")
             .raw_header("Access-Control-Max-Age", "42")
-            .sized_body(Cursor::new("Brewing the best coffee!"))
+            .sized_body(body.len(), Cursor::new(body))
             .finalize();
 
         let response = Response::new();
@@ -2572,16 +2604,12 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2607,16 +2635,12 @@ mod tests {
         let cors = options.to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2639,16 +2663,12 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2665,13 +2685,8 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2687,16 +2702,12 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Post,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::POST.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2713,16 +2724,15 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers = hyper::header::AccessControlRequestHeaders(vec![
-            FromStr::from_str("Authorization").unwrap(),
-            FromStr::from_str("X-NOT-ALLOWED").unwrap(),
-        ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(
+            ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
+            "Authorization, X-NOT-ALLOWED",
+        );
 
         let request = client
             .options("/")
@@ -2738,8 +2748,7 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let request = client.get("/").header(origin_header);
 
         let result = validate(&cors, request.inner()).expect("to not fail");
@@ -2757,8 +2766,7 @@ mod tests {
         let cors = options.to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
         let request = client.get("/").header(origin_header);
 
         let result = validate(&cors, request.inner()).expect("to not fail");
@@ -2775,8 +2783,7 @@ mod tests {
         let cors = make_cors_options().to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.example.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
         let request = client.get("/").header(origin_header);
 
         let _ = validate(&cors, request.inner()).unwrap();
@@ -2799,16 +2806,12 @@ mod tests {
         let cors = options.to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2839,16 +2842,12 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2879,16 +2878,12 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
-        let method_header = Header::from(hyper::header::AccessControlRequestMethod(
-            hyper::method::Method::Get,
-        ));
-        let request_headers =
-            hyper::header::AccessControlRequestHeaders(vec![
-                FromStr::from_str("Authorization").unwrap()
-            ]);
-        let request_headers = Header::from(request_headers);
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
+        let method_header = Header::new(
+            ACCESS_CONTROL_REQUEST_METHOD.as_str(),
+            hyper::Method::GET.as_str(),
+        );
+        let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
         let request = client
             .options("/")
@@ -2914,8 +2909,7 @@ mod tests {
         let cors = options.to_cors().expect("To not fail");
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
@@ -2937,8 +2931,7 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");
@@ -2960,8 +2953,7 @@ mod tests {
 
         let client = make_client();
 
-        let origin_header =
-            Header::from(hyper::header::Origin::from_str("https://www.acme.com").unwrap());
+        let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let request = client.get("/").header(origin_header);
 
         let response = validate_and_build(&cors, request.inner()).expect("to not fail");

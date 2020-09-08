@@ -1,17 +1,14 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-use rocket;
-use rocket_cors;
-
+use std::error::Error;
 use std::io::Cursor;
 
 use rocket::http::Method;
 use rocket::Response;
 use rocket::{get, options, routes};
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Error, Guard, Responder};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Guard, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
-fn responder(cors: Guard<'_>) -> Responder<'_, &str> {
+fn responder(cors: Guard<'_>) -> Responder<'_, '_, &str> {
     cors.responder("Hello CORS!")
 }
 
@@ -19,23 +16,25 @@ fn responder(cors: Guard<'_>) -> Responder<'_, &str> {
 #[get("/response")]
 fn response(cors: Guard<'_>) -> Response<'_> {
     let mut response = Response::new();
-    response.set_sized_body(Cursor::new("Hello CORS!"));
+    let body = "Hello CORS!";
+    response.set_sized_body(body.len(), Cursor::new(body));
     cors.response(response)
 }
 
 /// Manually mount an OPTIONS route for your own handling
 #[options("/manual")]
-fn manual_options(cors: Guard<'_>) -> Responder<'_, &str> {
+fn manual_options(cors: Guard<'_>) -> Responder<'_, '_, &str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 
 /// Manually mount an OPTIONS route for your own handling
 #[get("/manual")]
-fn manual(cors: Guard<'_>) -> Responder<'_, &str> {
+fn manual(cors: Guard<'_>) -> Responder<'_, '_, &str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 
-fn main() -> Result<(), Error> {
+#[rocket::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
@@ -55,7 +54,8 @@ fn main() -> Result<(), Error> {
         // You can also manually mount an OPTIONS route that will be used instead
         .mount("/", routes![manual, manual_options])
         .manage(cors)
-        .launch();
+        .launch()
+        .await?;
 
     Ok(())
 }

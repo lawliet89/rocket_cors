@@ -1,9 +1,6 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-use rocket;
-use rocket_cors;
-
 use std::io::Cursor;
 
+use rocket::error::Error;
 use rocket::http::Method;
 use rocket::response::Responder;
 use rocket::{get, options, routes, Response, State};
@@ -17,7 +14,7 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
 /// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
 /// `'r` and so does `Responder`!
 #[get("/")]
-fn borrowed(options: State<'_, Cors>) -> impl Responder<'_> {
+fn borrowed(options: State<'_, Cors>) -> impl Responder<'_, '_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
@@ -27,9 +24,10 @@ fn borrowed(options: State<'_, Cors>) -> impl Responder<'_> {
 /// Note that the `'r` lifetime annotation is not requred here because `State` borrows with lifetime
 /// `'r` and so does `Responder`!
 #[get("/response")]
-fn response(options: State<'_, Cors>) -> impl Responder<'_> {
+fn response(options: State<'_, Cors>) -> impl Responder<'_, '_> {
     let mut response = Response::new();
-    response.set_sized_body(Cursor::new("Hello CORS!"));
+    let body = "Hello CORS!";
+    response.set_sized_body(body.len(), Cursor::new(body));
 
     options
         .inner()
@@ -43,7 +41,7 @@ fn response(options: State<'_, Cors>) -> impl Responder<'_> {
 /// when the settings you want to use for a route is not the same as the rest of the application
 /// (which you might have put in Rocket's state).
 #[get("/owned")]
-fn owned<'r>() -> impl Responder<'r> {
+fn owned<'r, 'o: 'r>() -> impl Responder<'r, 'o> {
     let options = cors_options().to_cors()?;
     options.respond_owned(|guard| guard.responder("Hello CORS"))
 }
@@ -53,7 +51,7 @@ fn owned<'r>() -> impl Responder<'r> {
 /// These routes can just return the unit type `()`
 /// Note that the `'r` lifetime is needed because the compiler cannot elide anything.
 #[options("/owned")]
-fn owned_options<'r>() -> impl Responder<'r> {
+fn owned_options<'r, 'o: 'r>() -> impl Responder<'r, 'o> {
     let options = cors_options().to_cors()?;
     options.respond_owned(|guard| guard.responder(()))
 }
@@ -71,10 +69,12 @@ fn cors_options() -> CorsOptions {
     }
 }
 
-fn main() {
+#[rocket::main]
+async fn main() -> Result<(), Error> {
     rocket::ignite()
         .mount("/", routes![borrowed, response, owned, owned_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options().to_cors().expect("To not fail"))
-        .launch();
+        .launch()
+        .await
 }

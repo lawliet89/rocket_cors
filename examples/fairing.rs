@@ -1,17 +1,16 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-use rocket;
-use rocket_cors;
+use std::error::Error;
 
 use rocket::http::Method;
 use rocket::{get, routes};
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Error};
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 #[get("/")]
 fn cors<'a>() -> &'a str {
     "Hello CORS"
 }
 
-fn main() -> Result<(), Error> {
+#[rocket::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let allowed_origins = AllowedOrigins::some_exact(&["https://www.acme.com"]);
 
     // You can also deserialize this
@@ -27,7 +26,8 @@ fn main() -> Result<(), Error> {
     rocket::ignite()
         .mount("/", routes![cors])
         .attach(cors)
-        .launch();
+        .launch()
+        .await?;
 
     Ok(())
 }

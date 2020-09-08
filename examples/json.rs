@@ -1,10 +1,7 @@
 //! This example is to demonstrate the JSON serialization and deserialization of the Cors settings
 //!
 //! Note: This requires the `serialization` feature which is enabled by default.
-#![feature(proc_macro_hygiene, decl_macro)]
-
 use rocket_cors as cors;
-use serde_json;
 
 use crate::cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use rocket::http::Method;

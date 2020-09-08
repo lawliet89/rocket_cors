@@ -2,7 +2,7 @@
 
 use ::log::{error, info};
 use rocket::http::{self, uri::Origin, Status};
-use rocket::{self, error_, info_, log_, Outcome, Request};
+use rocket::{self, error_, info_, log_, outcome::Outcome, Request};
 
 use crate::{
     actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error,
@@ -14,25 +14,32 @@ enum CorsValidation {
     Failure,
 }
 
-/// Route for Fairing error handling
-pub(crate) fn fairing_error_route<'r>(
-    request: &'r Request<'_>,
-    _: rocket::Data,
-) -> rocket::handler::Outcome<'r> {
-    let status = request
-        .get_param::<u16>(0)
-        .unwrap_or(Ok(0))
-        .unwrap_or_else(|e| {
-            error_!("Fairing Error Handling Route error: {:?}", e);
-            500
-        });
-    let status = Status::from_code(status).unwrap_or_else(|| Status::InternalServerError);
-    Outcome::Failure(status)
+/// Create a `Handler` for Fairing error handling
+#[derive(Clone)]
+struct FairingErrorRoute {}
+
+#[rocket::async_trait]
+impl rocket::handler::Handler for FairingErrorRoute {
+    async fn handle<'r, 's: 'r>(
+        &'s self,
+        request: &'r Request<'_>,
+        _: rocket::Data,
+    ) -> rocket::handler::Outcome<'r> {
+        let status = request
+            .get_param::<u16>(0)
+            .unwrap_or(Ok(0))
+            .unwrap_or_else(|e| {
+                error_!("Fairing Error Handling Route error: {:?}", e);
+                500
+            });
+        let status = Status::from_code(status).unwrap_or_else(|| Status::InternalServerError);
+        Outcome::Failure(status)
+    }
 }
 
 /// Create a new `Route` for Fairing handling
 fn fairing_route(rank: isize) -> rocket::Route {
-    rocket::Route::ranked(rank, http::Method::Get, "/<status>", fairing_error_route)
+    rocket::Route::ranked(rank, http::Method::Get, "/<status>", FairingErrorRoute {})
 }
 
 /// Modifies a `Request` to route to Fairing error handler
@@ -90,6 +97,7 @@ fn on_response_wrapper(
     Ok(())
 }
 
+#[rocket::async_trait]
 impl rocket::fairing::Fairing for Cors {
     fn info(&self) -> rocket::fairing::Info {
         rocket::fairing::Info {
@@ -100,14 +108,14 @@ impl rocket::fairing::Fairing for Cors {
         }
     }
 
-    fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
+    async fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
         Ok(rocket.mount(
             &self.fairing_route_base,
             vec![fairing_route(self.fairing_route_rank)],
         ))
     }
 
-    fn on_request(&self, request: &mut Request<'_>, _: &rocket::Data) {
+    async fn on_request(&self, request: &mut Request<'_>, _: &rocket::Data) {
         let result = match validate(self, request) {
             Ok(_) => CorsValidation::Success,
             Err(err) => {
@@ -121,7 +129,7 @@ impl rocket::fairing::Fairing for Cors {
         let _ = request.local_cache(|| result);
     }
 
-    fn on_response(&self, request: &Request<'_>, response: &mut rocket::Response<'_>) {
+    async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut rocket::Response<'r>) {
         if let Err(err) = on_response_wrapper(self, request, response) {
             error_!("Fairings on_response error: {}\nMost likely a bug", err);
             response.set_status(Status::InternalServerError);
@@ -133,7 +141,7 @@ impl rocket::fairing::Fairing for Cors {
 #[cfg(test)]
 mod tests {
     use rocket::http::{Method, Status};
-    use rocket::local::Client;
+    use rocket::local::blocking::Client;
     use rocket::Rocket;
 
     use crate::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
@@ -161,7 +169,8 @@ mod tests {
     }
 
     #[test]
-    fn fairing_error_route_returns_passed_in_status() {
+    #[allow(non_snake_case)]
+    fn FairingErrorRoute_returns_passed_in_status() {
         let client = Client::new(rocket(make_cors_options())).expect("to not fail");
         let request = client.get(format!("{}/403", CORS_ROOT));
         let response = request.dispatch();
@@ -169,19 +178,22 @@ mod tests {
     }
 
     #[test]
-    fn fairing_error_route_returns_500_for_unknown_status() {
+    #[allow(non_snake_case)]
+    fn FairingErrorRoute_returns_500_for_unknown_status() {
         let client = Client::new(rocket(make_cors_options())).expect("to not fail");
         let request = client.get(format!("{}/999", CORS_ROOT));
         let response = request.dispatch();
         assert_eq!(Status::InternalServerError, response.status());
     }
 
-    #[test]
-    fn error_route_is_mounted_on_attach() {
-        let rocket = rocket(make_cors_options());
+    #[rocket::async_test]
+    async fn error_route_is_mounted_on_attach() {
+        let mut rocket = rocket(make_cors_options());
 
         let expected_uri = format!("{}/<status>", CORS_ROOT);
         let error_route = rocket
+            .inspect()
+            .await
             .routes()
             .find(|r| r.method == Method::Get && r.uri.to_string() == expected_uri);
         assert!(error_route.is_some());
