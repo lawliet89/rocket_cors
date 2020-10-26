@@ -27,7 +27,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .mount("/", routes![cors])
         .attach(cors)
         .launch()
-        .await?;
+        .await
+        .ok();
 
     Ok(())
 }

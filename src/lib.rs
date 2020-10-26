@@ -2081,7 +2081,7 @@ mod tests {
     /// Make a client with no routes for unit testing
     fn make_client() -> Client {
         let rocket = rocket::ignite();
-        Client::new(rocket).expect("valid rocket instance")
+        Client::tracked(rocket).expect("valid rocket instance")
     }
 
     // CORS options test

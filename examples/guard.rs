@@ -55,7 +55,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .mount("/", routes![manual, manual_options])
         .manage(cors)
         .launch()
-        .await?;
+        .await
+        .ok();
 
     Ok(())
 }
