@@ -1816,7 +1816,7 @@ fn preflight_validate(
     // do not set any additional headers and terminate this set of steps.
     // The request is outside the scope of this specification.
 
-    let method = method.as_ref().ok_or_else(|| Error::MissingRequestMethod)?;
+    let method = method.as_ref().ok_or(Error::MissingRequestMethod)?;
 
     // 4. Let header field-names be the values as result of parsing the
     // Access-Control-Request-Headers headers.
