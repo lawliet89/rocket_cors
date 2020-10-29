@@ -70,7 +70,7 @@ fn rocket() -> rocket::Rocket {
 
 #[test]
 fn smoke_test() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     // `Options` pre-flight checks
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
@@ -106,7 +106,7 @@ fn smoke_test() {
 
 #[test]
 fn cors_options_check() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
@@ -132,7 +132,7 @@ fn cors_options_check() {
 
 #[test]
 fn cors_get_check() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let authorization = Header::new("Authorization", "let me in");
@@ -152,7 +152,7 @@ fn cors_get_check() {
 /// This test is to check that non CORS compliant requests to GET should still work. (i.e. curl)
 #[test]
 fn cors_get_no_origin() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let authorization = Header::new("Authorization", "let me in");
     let req = client.get("/").header(authorization);
@@ -165,7 +165,7 @@ fn cors_get_no_origin() {
 
 #[test]
 fn cors_options_bad_origin() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let method_header = Header::new(
@@ -185,7 +185,7 @@ fn cors_options_bad_origin() {
 
 #[test]
 fn cors_options_missing_origin() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
@@ -207,7 +207,7 @@ fn cors_options_missing_origin() {
 
 #[test]
 fn cors_options_bad_request_method() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
@@ -231,7 +231,7 @@ fn cors_options_bad_request_method() {
 
 #[test]
 fn cors_options_bad_request_header() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
@@ -255,7 +255,7 @@ fn cors_options_bad_request_header() {
 
 #[test]
 fn cors_get_bad_origin() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let authorization = Header::new("Authorization", "let me in");
@@ -272,7 +272,7 @@ fn cors_get_bad_origin() {
 /// Tests that the `ping` route accepts other Origins
 #[test]
 fn cors_options_ping_check() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
     let method_header = Header::new(
@@ -298,7 +298,7 @@ fn cors_options_ping_check() {
 /// Tests that the `ping` route accepts other Origins
 #[test]
 fn cors_get_ping_check() {
-    let client = Client::new(rocket()).unwrap();
+    let client = Client::tracked(rocket()).unwrap();
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
 

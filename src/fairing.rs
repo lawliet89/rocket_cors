@@ -32,7 +32,7 @@ impl rocket::handler::Handler for FairingErrorRoute {
                 error_!("Fairing Error Handling Route error: {:?}", e);
                 500
             });
-        let status = Status::from_code(status).unwrap_or_else(|| Status::InternalServerError);
+        let status = Status::from_code(status).unwrap_or(Status::InternalServerError);
         Outcome::Failure(status)
     }
 }
@@ -115,7 +115,7 @@ impl rocket::fairing::Fairing for Cors {
         ))
     }
 
-    async fn on_request(&self, request: &mut Request<'_>, _: &rocket::Data) {
+    async fn on_request(&self, request: &mut Request<'_>, _: &mut rocket::Data) {
         let result = match validate(self, request) {
             Ok(_) => CorsValidation::Success,
             Err(err) => {
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn FairingErrorRoute_returns_passed_in_status() {
-        let client = Client::new(rocket(make_cors_options())).expect("to not fail");
+        let client = Client::tracked(rocket(make_cors_options())).expect("to not fail");
         let request = client.get(format!("{}/403", CORS_ROOT));
         let response = request.dispatch();
         assert_eq!(Status::Forbidden, response.status());
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn FairingErrorRoute_returns_500_for_unknown_status() {
-        let client = Client::new(rocket(make_cors_options())).expect("to not fail");
+        let client = Client::tracked(rocket(make_cors_options())).expect("to not fail");
         let request = client.get(format!("{}/999", CORS_ROOT));
         let response = request.dispatch();
         assert_eq!(Status::InternalServerError, response.status());
@@ -188,12 +188,10 @@ mod tests {
 
     #[rocket::async_test]
     async fn error_route_is_mounted_on_attach() {
-        let mut rocket = rocket(make_cors_options());
+        let rocket = rocket(make_cors_options());
 
         let expected_uri = format!("{}/<status>", CORS_ROOT);
         let error_route = rocket
-            .inspect()
-            .await
             .routes()
             .find(|r| r.method == Method::Get && r.uri.to_string() == expected_uri);
         assert!(error_route.is_some());
