@@ -1516,10 +1516,10 @@ impl<'r, 'o: 'r> Guard<'r> {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
+impl<'r> FromRequest<'r> for Guard<'r> {
     type Error = Error;
 
-    async fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
         let options = match request.guard::<State<'_, Cors>>().await {
             Outcome::Success(options) => options,
             _ => {

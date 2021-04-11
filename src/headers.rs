@@ -134,11 +134,11 @@ impl fmt::Display for Origin {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for Origin {
+impl<'r> FromRequest<'r> for Origin {
     type Error = crate::Error;
 
     async fn from_request(
-        request: &'a rocket::Request<'r>,
+        request: &'r rocket::Request<'_>,
     ) -> request::Outcome<Self, crate::Error> {
         Origin::from_request_sync(request)
     }
@@ -180,11 +180,11 @@ impl FromStr for AccessControlRequestMethod {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestMethod {
+impl<'r> FromRequest<'r> for AccessControlRequestMethod {
     type Error = crate::Error;
 
     async fn from_request(
-        request: &'a rocket::Request<'r>,
+        request: &'r rocket::Request<'_>,
     ) -> request::Outcome<Self, crate::Error> {
         AccessControlRequestMethod::from_request_sync(request)
     }
@@ -238,11 +238,11 @@ impl FromStr for AccessControlRequestHeaders {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for AccessControlRequestHeaders {
+impl<'r> FromRequest<'r> for AccessControlRequestHeaders {
     type Error = crate::Error;
 
     async fn from_request(
-        request: &'a rocket::Request<'r>,
+        request: &'r rocket::Request<'_>,
     ) -> request::Outcome<Self, crate::Error> {
         AccessControlRequestHeaders::from_request_sync(request)
     }
