@@ -1991,13 +1991,7 @@ fn actual_request_response(options: &Cors, origin: &str) -> Response {
 pub fn catch_all_options_routes() -> Vec<rocket::Route> {
     vec![
         rocket::Route::ranked(
-            isize::max_value(),
-            http::Method::Options,
-            "/",
-            CatchAllOptionsRouteHandler {},
-        ),
-        rocket::Route::ranked(
-            isize::max_value(),
+            isize::MAX,
             http::Method::Options,
             "/<catch_all_options_route..>",
             CatchAllOptionsRouteHandler {},
