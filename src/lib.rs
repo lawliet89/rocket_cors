@@ -1516,10 +1516,10 @@ impl<'r, 'o: 'r> Guard<'r> {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for Guard<'r> {
+impl<'r> FromRequest<'r> for Guard<'r> {
     type Error = Error;
 
-    async fn from_request(request: &'a Request<'r>) -> rocket::request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
         let options = match request.guard::<State<'_, Cors>>().await {
             Outcome::Success(options) => options,
             _ => {
@@ -2009,15 +2009,15 @@ pub fn catch_all_options_routes() -> Vec<rocket::Route> {
 struct CatchAllOptionsRouteHandler {}
 
 #[rocket::async_trait]
-impl rocket::handler::Handler for CatchAllOptionsRouteHandler {
-    async fn handle<'r, 's: 'r>(
-        &'s self,
+impl rocket::route::Handler for CatchAllOptionsRouteHandler {
+    async fn handle<'r>(
+        &self,
         request: &'r Request<'_>,
         _: rocket::Data,
-    ) -> rocket::handler::Outcome<'r> {
+    ) -> rocket::route::Outcome<'r> {
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
-            Outcome::Failure((status, _)) => return rocket::handler::Outcome::failure(status),
+            Outcome::Failure((status, _)) => return rocket::route::Outcome::failure(status),
             Outcome::Forward(()) => unreachable!("Should not be reachable"),
         };
 
@@ -2026,7 +2026,7 @@ impl rocket::handler::Handler for CatchAllOptionsRouteHandler {
             request
         );
 
-        rocket::handler::Outcome::from(request, guard.responder(()))
+        rocket::route::Outcome::from(request, guard.responder(()))
     }
 }
 
@@ -2080,7 +2080,7 @@ mod tests {
 
     /// Make a client with no routes for unit testing
     fn make_client() -> Client {
-        let rocket = rocket::ignite();
+        let rocket = rocket::build();
         Client::tracked(rocket).expect("valid rocket instance")
     }
 

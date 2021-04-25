@@ -61,8 +61,8 @@ fn cors_options_all() -> CorsOptions {
     Default::default()
 }
 
-fn rocket() -> rocket::Rocket {
-    rocket::ignite()
+fn rocket() -> rocket::Rocket<rocket::Build> {
+    rocket::build()
         .mount("/", routes![app, ping, ping_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options().to_cors().expect("Not to fail"))

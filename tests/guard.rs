@@ -78,8 +78,8 @@ fn make_cors() -> cors::Cors {
     .expect("To not fail")
 }
 
-fn make_rocket() -> rocket::Rocket {
-    rocket::ignite()
+fn make_rocket() -> rocket::Rocket<rocket::Build> {
+    rocket::build()
         .mount("/", routes![cors_responder, panicking_route])
         .mount(
             "/",

@@ -95,8 +95,8 @@ fn make_different_cors_options() -> CorsOptions {
     }
 }
 
-fn rocket() -> rocket::Rocket {
-    rocket::ignite()
+fn rocket() -> rocket::Rocket<rocket::Build> {
+    rocket::build()
         .mount("/", routes![cors, panicking_route])
         .mount("/", routes![owned, owned_options])
         .mount("/", catch_all_options_routes()) // mount the catch all routes

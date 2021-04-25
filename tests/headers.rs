@@ -32,7 +32,7 @@ fn request_headers(
 /// Tests that all the request headers are parsed correcly in a HTTP request
 #[test]
 fn request_headers_round_trip_smoke_test() {
-    let rocket = rocket::ignite().mount("/", routes![request_headers]);
+    let rocket = rocket::build().mount("/", routes![request_headers]);
     let client = Client::tracked(rocket).expect("A valid Rocket client");
 
     let origin_header = Header::new(ORIGIN.as_str(), "https://foo.bar.xyz");
