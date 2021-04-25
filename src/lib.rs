@@ -280,13 +280,12 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
-
-use ::log::info;
+use ::log::{debug, error, info};
 use regex::RegexSet;
 use rocket::http::{self, Status};
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{debug_, error_, info_, outcome::Outcome, State};
+use rocket::{debug_, error_, info_, log_, outcome::Outcome, State};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
 
