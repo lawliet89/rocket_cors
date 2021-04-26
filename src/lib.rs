@@ -1989,14 +1989,12 @@ fn actual_request_response(options: &Cors, origin: &str) -> Response {
 ///
 /// See the documentation at the [crate root](index.html) for usage information.
 pub fn catch_all_options_routes() -> Vec<rocket::Route> {
-    vec![
-        rocket::Route::ranked(
-            isize::MAX,
-            http::Method::Options,
-            "/<catch_all_options_route..>",
-            CatchAllOptionsRouteHandler {},
-        ),
-    ]
+    vec![rocket::Route::ranked(
+        isize::MAX,
+        http::Method::Options,
+        "/<catch_all_options_route..>",
+        CatchAllOptionsRouteHandler {},
+    )]
 }
 
 /// Handler for the "catch all options route"

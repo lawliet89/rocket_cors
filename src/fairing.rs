@@ -189,7 +189,10 @@ mod tests {
 
     #[rocket::async_test]
     async fn error_route_is_mounted_on_ignite() {
-        let rocket = rocket(make_cors_options()).ignite().await.expect("to ignite");
+        let rocket = rocket(make_cors_options())
+            .ignite()
+            .await
+            .expect("to ignite");
 
         let expected_uri = format!("{}/<status>", CORS_ROOT);
         let error_route = rocket
