@@ -1,8 +1,9 @@
 //! Fairing implementation
 
+#[allow(unused_imports)]
 use ::log::{error, info};
 use rocket::http::{self, uri::Origin, Status};
-use rocket::{self, error_, info_, log_, outcome::Outcome, Request};
+use rocket::{self, error_, info_, outcome::Outcome, Request};
 
 use crate::{
     actual_request_response, origin, preflight_response, request_headers, validate, Cors, Error,
@@ -19,14 +20,14 @@ enum CorsValidation {
 struct FairingErrorRoute {}
 
 #[rocket::async_trait]
-impl rocket::handler::Handler for FairingErrorRoute {
-    async fn handle<'r, 's: 'r>(
-        &'s self,
+impl rocket::route::Handler for FairingErrorRoute {
+    async fn handle<'r>(
+        &self,
         request: &'r Request<'_>,
         _: rocket::Data,
-    ) -> rocket::handler::Outcome<'r> {
+    ) -> rocket::route::Outcome<'r> {
         let status = request
-            .get_param::<u16>(0)
+            .param::<u16>(0)
             .unwrap_or(Ok(0))
             .unwrap_or_else(|e| {
                 error_!("Fairing Error Handling Route error: {:?}", e);
@@ -102,13 +103,13 @@ impl rocket::fairing::Fairing for Cors {
     fn info(&self) -> rocket::fairing::Info {
         rocket::fairing::Info {
             name: "CORS",
-            kind: rocket::fairing::Kind::Attach
+            kind: rocket::fairing::Kind::Ignite
                 | rocket::fairing::Kind::Request
                 | rocket::fairing::Kind::Response,
         }
     }
 
-    async fn on_attach(&self, rocket: rocket::Rocket) -> Result<rocket::Rocket, rocket::Rocket> {
+    async fn on_ignite(&self, rocket: rocket::Rocket<rocket::Build>) -> rocket::fairing::Result {
         Ok(rocket.mount(
             &self.fairing_route_base,
             vec![fairing_route(self.fairing_route_rank)],
@@ -164,8 +165,8 @@ mod tests {
         .expect("Not to fail")
     }
 
-    fn rocket(fairing: Cors) -> Rocket {
-        Rocket::ignite().attach(fairing)
+    fn rocket(fairing: Cors) -> Rocket<rocket::Build> {
+        Rocket::build().attach(fairing)
     }
 
     #[test]
@@ -187,8 +188,11 @@ mod tests {
     }
 
     #[rocket::async_test]
-    async fn error_route_is_mounted_on_attach() {
-        let rocket = rocket(make_cors_options());
+    async fn error_route_is_mounted_on_ignite() {
+        let rocket = rocket(make_cors_options())
+            .ignite()
+            .await
+            .expect("to ignite");
 
         let expected_uri = format!("{}/<status>", CORS_ROOT);
         let error_route = rocket

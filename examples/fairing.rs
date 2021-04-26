@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     .to_cors()?;
 
-    rocket::ignite()
+    rocket::build()
         .mount("/", routes![cors])
         .attach(cors)
         .launch()
