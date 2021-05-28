@@ -5,8 +5,8 @@ use rocket::http::hyper;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::blocking::Client;
+use rocket::State;
 use rocket::{get, options, routes};
-use rocket::{Response, State};
 
 static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
 static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
@@ -36,12 +36,6 @@ fn cors_manual(cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
     cors.responder("Hello CORS")
 }
 
-/// Using a `Response` instead of a `Responder`
-#[get("/response")]
-fn response(cors: cors::Guard<'_>) -> Response<'_> {
-    cors.response(Response::new())
-}
-
 /// `Responder` with String
 #[get("/responder/string")]
 fn responder_string(cors: cors::Guard<'_>) -> cors::Responder<'_, 'static, String> {
@@ -59,7 +53,7 @@ struct SomeState;
 #[get("/state")]
 fn state<'r, 'o: 'r>(
     cors: cors::Guard<'r>,
-    _state: State<'r, SomeState>,
+    _state: &State<SomeState>,
 ) -> cors::Responder<'r, 'o, &'r str> {
     cors.responder("hmm")
 }
@@ -81,10 +75,7 @@ fn make_cors() -> cors::Cors {
 fn make_rocket() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .mount("/", routes![cors_responder, panicking_route])
-        .mount(
-            "/",
-            routes![response, responder_string, responder_unit, state],
-        )
+        .mount("/", routes![responder_string, responder_unit, state])
         .mount("/", cors::catch_all_options_routes()) // mount the catch all routes
         .mount("/", routes![cors_manual, cors_manual_options]) // manual OPTIOONS routes
         .manage(make_cors())

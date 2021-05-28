@@ -93,7 +93,7 @@ fn on_response_wrapper(
             request
         );
         response.set_status(Status::NoContent);
-        let _ = response.take_body();
+        let _ = response.body();
     }
     Ok(())
 }
@@ -134,7 +134,7 @@ impl rocket::fairing::Fairing for Cors {
         if let Err(err) = on_response_wrapper(self, request, response) {
             error_!("Fairings on_response error: {}\nMost likely a bug", err);
             response.set_status(Status::InternalServerError);
-            let _ = response.take_body();
+            let _ = response.body();
         }
     }
 }

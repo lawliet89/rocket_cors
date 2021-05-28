@@ -22,7 +22,7 @@ serialization = ["serde", "serde_derive", "unicase_serde"]
 
 [dependencies]
 regex = "1.1"
-rocket = { rev="801e04bd5369eb39e126c75f6d11e1e9597304d8", git = "https://github.com/SergioBenitez/Rocket.git", default-features = false }
+rocket = { rev="1f1976f8bf8531daf4ac596d83ea7ad589dd7368", git = "https://github.com/SergioBenitez/Rocket.git", default-features = false }
 log = "0.4"
 unicase = "2.0"
 url = "2.1.0"
