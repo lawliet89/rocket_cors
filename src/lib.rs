@@ -353,7 +353,7 @@ impl Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::MissingOrigin => write!(
                 f,
@@ -1521,7 +1521,7 @@ impl<'r> FromRequest<'r> for Guard<'r> {
     type Error = Error;
 
     async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
-        let options = match request.guard::<State<'_, Cors>>().await {
+        let options = match request.guard::<&State<Cors>>().await {
             Outcome::Success(options) => options,
             _ => {
                 let error = Error::MissingCorsInRocketState;
@@ -2523,8 +2523,7 @@ mod tests {
         let response = Response::new();
         let response = response.response(response::Response::new());
 
-        let headers: Vec<_> = response.headers().iter().collect();
-        assert_eq!(headers.len(), 0);
+        assert_eq!(response.headers().iter().count(), 0);
     }
 
     #[test]

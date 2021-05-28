@@ -16,14 +16,14 @@ static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
 
 /// Using a borrowed `Cors`
 #[get("/")]
-fn cors(options: State<'_, Cors>) -> impl Responder<'_, '_> {
+fn cors(options: &State<Cors>) -> impl Responder<'_, '_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS"))
 }
 
 #[get("/panic")]
-fn panicking_route(options: State<'_, Cors>) -> impl Responder<'_, '_> {
+fn panicking_route(options: &State<Cors>) -> impl Responder<'_, '_> {
     options.inner().respond_borrowed(|_| {
         panic!("This route will panic");
     })
@@ -50,7 +50,7 @@ fn owned<'r, 'o: 'r>() -> impl Responder<'r, 'o> {
 /// `Responder` with String
 #[get("/")]
 #[allow(dead_code)]
-fn responder_string(options: State<'_, Cors>) -> impl Responder<'_, '_> {
+fn responder_string(options: &State<Cors>) -> impl Responder<'_, '_> {
     options
         .inner()
         .respond_borrowed(|guard| guard.responder("Hello CORS".to_string()))
@@ -61,8 +61,8 @@ struct TestState;
 #[get("/")]
 #[allow(dead_code)]
 fn borrow<'r, 'o: 'r>(
-    options: State<'r, Cors>,
-    test_state: State<'r, TestState>,
+    options: &'r State<Cors>,
+    test_state: &'r State<TestState>,
 ) -> impl Responder<'r, 'o> {
     let borrow = test_state.inner();
     options.inner().respond_borrowed(move |guard| {

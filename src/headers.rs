@@ -124,7 +124,7 @@ impl FromStr for Origin {
 }
 
 impl fmt::Display for Origin {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Origin::Null => write!(f, "null"),
             Origin::Parsed(ref parsed) => write!(f, "{}", parsed.ascii_serialization()),
