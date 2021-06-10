@@ -24,7 +24,7 @@ impl rocket::route::Handler for FairingErrorRoute {
     async fn handle<'r>(
         &self,
         request: &'r Request<'_>,
-        _: rocket::Data,
+        _: rocket::Data<'r>,
     ) -> rocket::route::Outcome<'r> {
         let status = request
             .param::<u16>(0)
@@ -116,7 +116,7 @@ impl rocket::fairing::Fairing for Cors {
         ))
     }
 
-    async fn on_request(&self, request: &mut Request<'_>, _: &mut rocket::Data) {
+    async fn on_request(&self, request: &mut Request<'_>, _: &mut rocket::Data<'_>) {
         let result = match validate(self, request) {
             Ok(_) => CorsValidation::Success,
             Err(err) => {

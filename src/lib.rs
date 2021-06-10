@@ -1529,7 +1529,7 @@ impl<'r> FromRequest<'r> for Guard<'r> {
             }
         };
 
-        match Response::validate_and_build(&options, request) {
+        match Response::validate_and_build(options, request) {
             Ok(response) => Outcome::Success(Self::new(response)),
             Err(error) => Outcome::Failure((error.status(), error)),
         }
@@ -2006,7 +2006,7 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
     async fn handle<'r>(
         &self,
         request: &'r Request<'_>,
-        _: rocket::Data,
+        _: rocket::Data<'r>,
     ) -> rocket::route::Outcome<'r> {
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
@@ -2053,7 +2053,7 @@ mod tests {
                 .into_iter()
                 .map(From::from)
                 .collect(),
-            allowed_headers: AllowedHeaders::some(&[&"Authorization", "Accept"]),
+            allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             expose_headers: ["Content-Type", "X-Custom"]
                 .iter()
@@ -2103,7 +2103,7 @@ mod tests {
                     .map(From::from)
                     .collect(),
             )
-            .allowed_headers(AllowedHeaders::some(&[&"Authorization", "Accept"]))
+            .allowed_headers(AllowedHeaders::some(&["Authorization", "Accept"]))
             .allow_credentials(true)
             .expose_headers(
                 ["Content-Type", "X-Custom"]
