@@ -15,46 +15,43 @@ static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
     hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
 #[get("/")]
-fn cors_responder(cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
+fn cors_responder(cors: cors::Guard<'_>) -> cors::Responder<&str> {
     cors.responder("Hello CORS")
 }
 
 #[get("/panic")]
-fn panicking_route(_cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
+fn panicking_route(_cors: cors::Guard<'_>) -> cors::Responder<&str> {
     panic!("This route will panic");
 }
 
 /// Manually specify our own OPTIONS route
 #[options("/manual")]
-fn cors_manual_options(cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
+fn cors_manual_options(cors: cors::Guard<'_>) -> cors::Responder<&str> {
     cors.responder("Manual CORS Preflight")
 }
 
 /// Manually specify our own OPTIONS route
 #[get("/manual")]
-fn cors_manual(cors: cors::Guard<'_>) -> cors::Responder<'_, '_, &str> {
+fn cors_manual(cors: cors::Guard<'_>) -> cors::Responder<&str> {
     cors.responder("Hello CORS")
 }
 
 /// `Responder` with String
 #[get("/responder/string")]
-fn responder_string(cors: cors::Guard<'_>) -> cors::Responder<'_, 'static, String> {
+fn responder_string(cors: cors::Guard<'_>) -> cors::Responder<String> {
     cors.responder("Hello CORS".to_string())
 }
 
 /// `Responder` with 'static ()
 #[get("/responder/unit")]
-fn responder_unit(cors: cors::Guard<'_>) -> cors::Responder<'_, 'static, ()> {
+fn responder_unit(cors: cors::Guard<'_>) -> cors::Responder<()> {
     cors.responder(())
 }
 
 struct SomeState;
 /// Borrow `SomeState` from Rocket
 #[get("/state")]
-fn state<'r, 'o: 'r>(
-    cors: cors::Guard<'r>,
-    _state: &State<SomeState>,
-) -> cors::Responder<'r, 'o, &'r str> {
+fn state<'r, 'o: 'r>(cors: cors::Guard<'r>, _state: &State<SomeState>) -> cors::Responder<&'r str> {
     cors.responder("hmm")
 }
 

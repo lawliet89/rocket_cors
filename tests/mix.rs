@@ -18,7 +18,7 @@ static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
 
 /// The "usual" app route
 #[get("/")]
-fn app(cors: Guard<'_>) -> rocket_cors::Responder<'_, '_, &str> {
+fn app(cors: Guard<'_>) -> rocket_cors::Responder<&str> {
     cors.responder("Hello CORS!")
 }
 
