@@ -51,7 +51,7 @@ fn responder_unit(cors: cors::Guard<'_>) -> cors::Responder<()> {
 struct SomeState;
 /// Borrow `SomeState` from Rocket
 #[get("/state")]
-fn state<'r, 'o: 'r>(cors: cors::Guard<'r>, _state: &State<SomeState>) -> cors::Responder<&'r str> {
+fn state<'r>(cors: cors::Guard<'r>, _state: &State<SomeState>) -> cors::Responder<&'r str> {
     cors.responder("hmm")
 }
 
