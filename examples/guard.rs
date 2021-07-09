@@ -6,19 +6,19 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Guard, Responder};
 
 /// Using a `Responder` -- the usual way you would use this
 #[get("/")]
-fn responder(cors: Guard<'_>) -> Responder<'_, '_, &str> {
+fn responder(cors: Guard<'_>) -> Responder<&str> {
     cors.responder("Hello CORS!")
 }
 
 /// Manually mount an OPTIONS route for your own handling
 #[options("/manual")]
-fn manual_options(cors: Guard<'_>) -> Responder<'_, '_, &str> {
+fn manual_options(cors: Guard<'_>) -> Responder<&str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 
 /// Manually mount an OPTIONS route for your own handling
 #[get("/manual")]
-fn manual(cors: Guard<'_>) -> Responder<'_, '_, &str> {
+fn manual(cors: Guard<'_>) -> Responder<&str> {
     cors.responder("Manual OPTIONS preflight handling")
 }
 

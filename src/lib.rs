@@ -1371,7 +1371,7 @@ impl Response {
     pub fn responder<'r, 'o: 'r, R: response::Responder<'r, 'o>>(
         self,
         responder: R,
-    ) -> Responder<'r, 'o, R> {
+    ) -> Responder<R> {
         Responder::new(responder, self)
     }
 
@@ -1492,7 +1492,7 @@ impl<'r, 'o: 'r> Guard<'r> {
 
     /// Consumes the Guard and return  a `Responder` that wraps a
     /// provided `rocket:response::Responder` with CORS headers
-    pub fn responder<R: response::Responder<'r, 'o>>(self, responder: R) -> Responder<'r, 'o, R> {
+    pub fn responder<R: response::Responder<'r, 'o>>(self, responder: R) -> Responder<R> {
         self.response.responder(responder)
     }
 
@@ -1542,18 +1542,17 @@ impl<'r> FromRequest<'r> for Guard<'r> {
 ///
 /// See the documentation at the [crate root](index.html) for usage information.
 #[derive(Debug)]
-pub struct Responder<'r, 'o, R> {
+pub struct Responder<R> {
     responder: R,
     cors_response: Response,
-    marker: PhantomData<dyn response::Responder<'r, 'o>>,
 }
 
-impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> Responder<'r, 'o, R> {
+impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> Responder<R> {
     fn new(responder: R, cors_response: Response) -> Self {
         Self {
             responder,
             cors_response,
-            marker: PhantomData,
+            // marker: PhantomData,
         }
     }
 
@@ -1565,9 +1564,7 @@ impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> Responder<'r, 'o, R> {
     }
 }
 
-impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> response::Responder<'r, 'o>
-    for Responder<'r, 'o, R>
-{
+impl<'r, 'o: 'r, R: response::Responder<'r, 'o>> response::Responder<'r, 'o> for Responder<R> {
     fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
         self.respond(request)
     }
