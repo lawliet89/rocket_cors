@@ -67,7 +67,7 @@ The [`Cors`] struct is what will be used with Rocket. After creating or deserial
 You can add CORS to your routes via one of three ways, in descending order of ease and in
 ascending order of flexibility.
 
-- Fairing (should only used exclusively)
+- Fairing (should only be used exclusively)
 - Request Guard
 - Truly Manual
 
@@ -315,7 +315,7 @@ pub enum Error {
     HeadersNotAllowed,
     /// Credentials are allowed, but the Origin is set to "*". This is not allowed by W3C
     ///
-    /// This is a misconfiguration. Check the docuemntation for `Cors`.
+    /// This is a misconfiguration. Check the documentation for `Cors`.
     CredentialsWithWildcardOrigin,
     /// A CORS Request Guard was used, but no CORS Options was available in Rocket's state
     ///
@@ -911,7 +911,7 @@ impl AllowedHeaders {
 /// enabled by default.
 ///
 /// [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html) is implemented for this
-/// struct. The default for each field is described in the docuementation for the field.
+/// struct. The default for each field is described in the documentation for the field.
 ///
 /// Before you can use this with Rocket, you will need to call the [`CorsOptions::to_cors`] method.
 ///
