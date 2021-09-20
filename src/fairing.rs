@@ -93,7 +93,7 @@ fn on_response_wrapper(
             request
         );
         response.set_status(Status::NoContent);
-        let _ = response.body();
+        let _ = response.body_mut().take();
     }
     Ok(())
 }
