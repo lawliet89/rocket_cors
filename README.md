@@ -1,6 +1,6 @@
 # rocket_cors
 
-[![Build Status](https://travis-ci.org/lawliet89/rocket_cors.svg)](https://travis-ci.org/lawliet89/rocket_cors)
+[![Continuous integration](https://github.com/lawliet89/rocket_cors/actions/workflows/rust.yml/badge.svg)](https://github.com/lawliet89/rocket_cors/actions/workflows/rust.yml)
 [![Repository](https://img.shields.io/github/tag/lawliet89/rocket_cors.svg)](https://github.com/lawliet89/rocket_cors)
 [![Crates.io](https://img.shields.io/crates/v/rocket_cors.svg)](https://crates.io/crates/rocket_cors)
 
