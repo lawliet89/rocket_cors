@@ -1143,54 +1143,63 @@ impl CorsOptions {
     }
 
     /// Sets the allowed origins
+    #[must_use]
     pub fn allowed_origins(mut self, allowed_origins: AllowedOrigins) -> Self {
         self.allowed_origins = allowed_origins;
         self
     }
 
-    /// Sets the allowed methodes
+    /// Sets the allowed methods
+    #[must_use]
     pub fn allowed_methods(mut self, allowed_methods: AllowedMethods) -> Self {
         self.allowed_methods = allowed_methods;
         self
     }
 
     /// Sets the allowed headers
+    #[must_use]
     pub fn allowed_headers(mut self, allowed_headers: AllowedHeaders) -> Self {
         self.allowed_headers = allowed_headers;
         self
     }
 
     /// Marks if credentials are allowed
+    #[must_use]
     pub fn allow_credentials(mut self, allow_credentials: bool) -> Self {
         self.allow_credentials = allow_credentials;
         self
     }
 
     /// Sets the expose headers
+    #[must_use]
     pub fn expose_headers(mut self, expose_headers: HashSet<String>) -> Self {
         self.expose_headers = expose_headers;
         self
     }
 
     /// Sets the max age
+    #[must_use]
     pub fn max_age(mut self, max_age: Option<usize>) -> Self {
         self.max_age = max_age;
         self
     }
 
     /// Marks if wildcards are send
+    #[must_use]
     pub fn send_wildcard(mut self, send_wildcard: bool) -> Self {
         self.send_wildcard = send_wildcard;
         self
     }
 
     /// Sets the base of the fairing route
+    #[must_use]
     pub fn fairing_route_base<S: Into<String>>(mut self, fairing_route_base: S) -> Self {
         self.fairing_route_base = fairing_route_base.into();
         self
     }
 
     /// Sets the rank of the fairing route
+    #[must_use]
     pub fn fairing_route_rank(mut self, fairing_route_rank: isize) -> Self {
         self.fairing_route_rank = fairing_route_rank;
         self
