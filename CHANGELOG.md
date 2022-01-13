@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## 0.6.0-alpha1 (2022-01-13)
+## What's Changed
+* Use async version from rocket's master branch by @HenningHolmDE in https://github.com/lawliet89/rocket_cors/pull/81
+* fix: Update to latest master Rocket version by @DusterTheFirst in https://github.com/lawliet89/rocket_cors/pull/85
+* Update to latest master Rocket version by @thanadolps in https://github.com/lawliet89/rocket_cors/pull/89
+* Upgrade to GitHub-native Dependabot by @dependabot-preview in https://github.com/lawliet89/rocket_cors/pull/90
+* Update to latest Rocket master by @ELD in https://github.com/lawliet89/rocket_cors/pull/91
+* Resolve Tokio Dependency conflicy by @magpie-engineering in https://github.com/lawliet89/rocket_cors/pull/92
+* Update to Rocket 0.5-rc.1 by @ELD in https://github.com/lawliet89/rocket_cors/pull/93
+* Update lib.rs and README for nightly req and version by @jtroo in https://github.com/lawliet89/rocket_cors/pull/95
+* Responder lifetime cannot be infered by @mrene in https://github.com/lawliet89/rocket_cors/pull/97
+* Fix documentation typos by @deneiruy in https://github.com/lawliet89/rocket_cors/pull/98
+* Fix rustdoc lint drift by @ELD in https://github.com/lawliet89/rocket_cors/pull/101
+* Drop body from response to preflight request by @KOBA789 in https://github.com/lawliet89/rocket_cors/pull/100
+* docs: fix ci badge by @torkleyy in https://github.com/lawliet89/rocket_cors/pull/104
+* feat: update rust edition from 2018 to 2021 by @somehowchris in https://github.com/lawliet89/rocket_cors/pull/105
+
+## New Contributors
+* @HenningHolmDE made their first contribution in https://github.com/lawliet89/rocket_cors/pull/81
+* @DusterTheFirst made their first contribution in https://github.com/lawliet89/rocket_cors/pull/85
+* @thanadolps made their first contribution in https://github.com/lawliet89/rocket_cors/pull/89
+* @magpie-engineering made their first contribution in https://github.com/lawliet89/rocket_cors/pull/92
+* @jtroo made their first contribution in https://github.com/lawliet89/rocket_cors/pull/95
+* @mrene made their first contribution in https://github.com/lawliet89/rocket_cors/pull/97
+* @deneiruy made their first contribution in https://github.com/lawliet89/rocket_cors/pull/98
+* @KOBA789 made their first contribution in https://github.com/lawliet89/rocket_cors/pull/100
+* @torkleyy made their first contribution in https://github.com/lawliet89/rocket_cors/pull/104
+* @somehowchris made their first contribution in https://github.com/lawliet89/rocket_cors/pull/105
+
+**Full Changelog**: https://github.com/lawliet89/rocket_cors/compare/v0.5.2...v0.6.0-alpha1
 ## 0.5.2 (2020-03-18)
 
 ### Improvements
