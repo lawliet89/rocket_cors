@@ -26,7 +26,6 @@ impl rocket::route::Handler for FairingErrorRoute {
         request: &'r Request<'_>,
         _: rocket::Data<'r>,
     ) -> rocket::route::Outcome<'r> {
-        let _ = &__arg2;
         let status = request
             .param::<u16>(0)
             .unwrap_or(Ok(0))

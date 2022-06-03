@@ -2003,7 +2003,6 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
         request: &'r Request<'_>,
         _: rocket::Data<'r>,
     ) -> rocket::route::Outcome<'r> {
-        let _ = &__arg2;
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
             Outcome::Failure((status, _)) => return rocket::route::Outcome::failure(status),
