@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     .to_cors()?;
 
-    rocket::build()
+    let _ = rocket::build()
         .mount("/", routes![responder])
         // Mount the routes to catch all the OPTIONS pre-flight requests
         .mount("/", rocket_cors::catch_all_options_routes())
