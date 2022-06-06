@@ -56,10 +56,12 @@ fn cors_options_all() -> CorsOptions {
 
 #[rocket::main]
 async fn main() -> Result<(), Error> {
-    rocket::build()
+    let _ = rocket::build()
         .mount("/", routes![app, ping, ping_options,])
         .mount("/", rocket_cors::catch_all_options_routes()) // mount the catch all routes
         .manage(cors_options().to_cors().expect("To not fail"))
         .launch()
-        .await
+        .await?;
+
+    Ok(())
 }

@@ -39,7 +39,7 @@ impl<'a> From<&'a str> for HeaderFieldName {
     }
 }
 
-impl<'a> From<String> for HeaderFieldName {
+impl From<String> for HeaderFieldName {
     fn from(s: String) -> Self {
         HeaderFieldName(From::from(s))
     }
@@ -256,10 +256,10 @@ mod tests {
     use rocket::http::Header;
     use rocket::local::blocking::Client;
 
-    static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
-    static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+    static ORIGIN: http::header::HeaderName = hyper::header::ORIGIN;
+    static ACCESS_CONTROL_REQUEST_METHOD: http::header::HeaderName =
         hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
-    static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+    static ACCESS_CONTROL_REQUEST_HEADERS: http::header::HeaderName =
         hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     use super::*;

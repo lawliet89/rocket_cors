@@ -2003,7 +2003,6 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
         request: &'r Request<'_>,
         _: rocket::Data<'r>,
     ) -> rocket::route::Outcome<'r> {
-        let _ = &__arg2;
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
             Outcome::Failure((status, _)) => return rocket::route::Outcome::failure(status),
@@ -2030,10 +2029,10 @@ mod tests {
     use super::*;
     use crate::http::Method;
 
-    static ORIGIN: hyper::HeaderName = hyper::header::ORIGIN;
-    static ACCESS_CONTROL_REQUEST_METHOD: hyper::HeaderName =
+    static ORIGIN: ::http::header::HeaderName = hyper::header::ORIGIN;
+    static ACCESS_CONTROL_REQUEST_METHOD: ::http::header::HeaderName =
         hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
-    static ACCESS_CONTROL_REQUEST_HEADERS: hyper::HeaderName =
+    static ACCESS_CONTROL_REQUEST_HEADERS: ::http::header::HeaderName =
         hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     fn to_parsed_origin<S: AsRef<str>>(origin: S) -> Result<Origin, Error> {
@@ -2558,7 +2557,7 @@ mod tests {
             .is_none());
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, Eq, PartialEq)]
     #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
     struct MethodTest {
         method: crate::Method,
