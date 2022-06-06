@@ -2557,7 +2557,7 @@ mod tests {
             .is_none());
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, Eq, PartialEq)]
     #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
     struct MethodTest {
         method: crate::Method,

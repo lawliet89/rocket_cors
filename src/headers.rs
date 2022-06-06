@@ -39,7 +39,7 @@ impl<'a> From<&'a str> for HeaderFieldName {
     }
 }
 
-impl<'a> From<String> for HeaderFieldName {
+impl From<String> for HeaderFieldName {
     fn from(s: String) -> Self {
         HeaderFieldName(From::from(s))
     }
