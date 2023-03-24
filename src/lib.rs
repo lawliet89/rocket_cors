@@ -208,7 +208,6 @@ See the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/
 */
 
 #![deny(
-    const_err,
     dead_code,
     deprecated,
     arithmetic_overflow,
