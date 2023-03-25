@@ -433,18 +433,16 @@ impl From<regex::Error> for Error {
 /// ["Externally tagged"](https://serde.rs/enum-representations.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[derive(Default)]
 pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.
+    #[default]
     All,
     /// Only some of `T` is allowed
     Some(T),
 }
 
-impl<T> Default for AllOrSome<T> {
-    fn default() -> Self {
-        AllOrSome::All
-    }
-}
+
 
 impl<T> AllOrSome<T> {
     /// Returns whether this is an `All` variant
@@ -1734,7 +1732,7 @@ fn validate_allowed_method(
     method: &AccessControlRequestMethod,
     allowed_methods: &AllowedMethods,
 ) -> Result<(), Error> {
-    let &AccessControlRequestMethod(ref request_method) = method;
+    let AccessControlRequestMethod(request_method) = method;
     if !allowed_methods.iter().any(|m| m == request_method) {
         return Err(Error::MethodNotAllowed(method.0.to_string()));
     }
@@ -1748,7 +1746,7 @@ fn validate_allowed_headers(
     headers: &AccessControlRequestHeaders,
     allowed_headers: &AllowedHeaders,
 ) -> Result<(), Error> {
-    let &AccessControlRequestHeaders(ref headers) = headers;
+    let AccessControlRequestHeaders(headers) = headers;
 
     match *allowed_headers {
         AllOrSome::All => Ok(()),
@@ -1896,7 +1894,7 @@ fn preflight_response(
 
     // We do not do anything special with simple headers
     if let Some(headers) = headers {
-        let &AccessControlRequestHeaders(ref headers) = headers;
+        let AccessControlRequestHeaders(headers) = headers;
         response.headers(
             headers
                 .iter()
@@ -2241,7 +2239,7 @@ mod tests {
     #[test]
     fn validate_origin_allows_all_origins() {
         let url = "https://www.example.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         let allowed_origins = AllOrSome::All;
 
         not_err!(validate_origin(&origin, &allowed_origins));
@@ -2250,7 +2248,7 @@ mod tests {
     #[test]
     fn validate_origin_allows_origin() {
         let url = "https://www.example.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
             "https://www.example.com"
         ])));
@@ -2269,7 +2267,7 @@ mod tests {
         ];
 
         for (url, allowed_origin) in cases {
-            let origin = not_err!(to_parsed_origin(&url));
+            let origin = not_err!(to_parsed_origin(url));
             let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
                 allowed_origin
             ])));
@@ -2286,18 +2284,18 @@ mod tests {
         ])));
 
         let url = "https://www.example-something.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         not_err!(validate_origin(&origin, &allowed_origins));
 
         let url = "https://subdomain.acme.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         not_err!(validate_origin(&origin, &allowed_origins));
     }
 
     #[test]
     fn validate_origin_validates_opaque_origins() {
         let url = "moz-extension://8c7c4444-e29f-…cb8-1ade813dbd12/js/content.js:505";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_regex(&[
             "moz-extension://.*"
         ])));
@@ -2313,11 +2311,11 @@ mod tests {
         )));
 
         let url = "https://www.example-something123.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         not_err!(validate_origin(&origin, &allowed_origins));
 
         let url = "https://www.acme.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         not_err!(validate_origin(&origin, &allowed_origins));
     }
 
@@ -2325,7 +2323,7 @@ mod tests {
     #[should_panic(expected = "OriginNotAllowed")]
     fn validate_origin_rejects_invalid_origin() {
         let url = "https://www.acme.com";
-        let origin = not_err!(to_parsed_origin(&url));
+        let origin = not_err!(to_parsed_origin(url));
         let allowed_origins = not_err!(parse_allowed_origins(&AllowedOrigins::some_exact(&[
             "https://www.example.com"
         ])));
@@ -2488,7 +2486,7 @@ mod tests {
             &AllOrSome::Some(
                 allowed_headers
                     .iter()
-                    .map(|s| FromStr::from_str(*s).unwrap())
+                    .map(|s| FromStr::from_str(s).unwrap())
                     .collect(),
             ),
         ));
@@ -2505,7 +2503,7 @@ mod tests {
             &AllOrSome::Some(
                 allowed_headers
                     .iter()
-                    .map(|s| FromStr::from_str(*s).unwrap())
+                    .map(|s| FromStr::from_str(s).unwrap())
                     .collect(),
             ),
         )
