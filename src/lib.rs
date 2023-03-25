@@ -1463,10 +1463,7 @@ impl Response {
     }
 
     /// Validate and create a new CORS Response from a request and settings
-    pub fn validate_and_build<'a>(
-        options: &'a Cors,
-        request: &'a Request,
-    ) -> Result<Self, Error> {
+    pub fn validate_and_build<'a>(options: &'a Cors, request: &'a Request) -> Result<Self, Error> {
         validate_and_build(options, request)
     }
 }
