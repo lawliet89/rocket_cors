@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.6.0-alpha1 (2022-01-13)
+## 0.6.0-alpha2 (2022-01-13)
 ## What's Changed
 * Use async version from rocket's master branch by @HenningHolmDE in https://github.com/lawliet89/rocket_cors/pull/81
 * fix: Update to latest master Rocket version by @DusterTheFirst in https://github.com/lawliet89/rocket_cors/pull/85
@@ -29,7 +29,7 @@
 * @torkleyy made their first contribution in https://github.com/lawliet89/rocket_cors/pull/104
 * @somehowchris made their first contribution in https://github.com/lawliet89/rocket_cors/pull/105
 
-**Full Changelog**: https://github.com/lawliet89/rocket_cors/compare/v0.5.2...v0.6.0-alpha1
+**Full Changelog**: https://github.com/lawliet89/rocket_cors/compare/v0.5.2...v0.6.0-alpha2
 ## 0.5.2 (2020-03-18)
 
 ### Improvements
