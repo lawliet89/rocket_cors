@@ -442,8 +442,6 @@ pub enum AllOrSome<T> {
     Some(T),
 }
 
-
-
 impl<T> AllOrSome<T> {
     /// Returns whether this is an `All` variant
     pub fn is_all(&self) -> bool {
