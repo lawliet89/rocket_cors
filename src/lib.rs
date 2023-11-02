@@ -1515,13 +1515,13 @@ impl<'r> FromRequest<'r> for Guard<'r> {
             Outcome::Success(options) => options,
             _ => {
                 let error = Error::MissingCorsInRocketState;
-                return Outcome::Failure((error.status(), error));
+                return Outcome::Error((error.status(), error));
             }
         };
 
         match Response::validate_and_build(options, request) {
             Ok(response) => Outcome::Success(Self::new(response)),
-            Err(error) => Outcome::Failure((error.status(), error)),
+            Err(error) => Outcome::Error((error.status(), error)),
         }
     }
 }
@@ -1757,27 +1757,27 @@ fn validate_allowed_headers(
 /// Gets the `Origin` request header from the request
 fn origin(request: &Request<'_>) -> Result<Option<Origin>, Error> {
     match Origin::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(origin) => Ok(Some(origin)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
 /// Gets the `Access-Control-Request-Method` request header from the request
 fn request_method(request: &Request<'_>) -> Result<Option<AccessControlRequestMethod>, Error> {
     match AccessControlRequestMethod::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(method) => Ok(Some(method)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
 /// Gets the `Access-Control-Request-Headers` request header from the request
 fn request_headers(request: &Request<'_>) -> Result<Option<AccessControlRequestHeaders>, Error> {
     match AccessControlRequestHeaders::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(geaders) => Ok(Some(geaders)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
@@ -1997,8 +1997,8 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
     ) -> rocket::route::Outcome<'r> {
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
-            Outcome::Failure((status, _)) => return rocket::route::Outcome::failure(status),
-            Outcome::Forward(()) => unreachable!("Should not be reachable"),
+            Outcome::Error((status, _)) => return rocket::route::Outcome::Error(status),
+            Outcome::Forward(_) => unreachable!("Should not be reachable"),
         };
 
         info_!(
