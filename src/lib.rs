@@ -134,11 +134,11 @@ Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
 verb.
 - Then in all the routes you want to enforce CORS on, add a
 [Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
-[`Guard`](Guard) struct in the route arguments. You should not wrap this in an
+[`Guard`] struct in the route arguments. You should not wrap this in an
 `Option` or `Result` because the guard will let non-CORS requests through and will take over
 error handling in case of errors.
 - In your routes, to add CORS headers to your responses, use the appropriate functions on the
-[`Guard`](Guard) for a `Response` or a `Responder`.
+[`Guard`] for a `Response` or a `Responder`.
 
 Refer to the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/guard.rs).
 
