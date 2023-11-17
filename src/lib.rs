@@ -18,7 +18,7 @@ If you are using Rocket 0.3, use the `0.3.0` version of this crate.
 Add the following to Cargo.toml:
 
 ```toml
-rocket_cors = "0.6.0-alpha2"
+rocket_cors = "0.6.0-alpha3"
 ```
 
 To use the latest `master` branch, for example:
@@ -34,7 +34,7 @@ the [`CorsOptions`] struct that is described below. If you would like to disable
 change your `Cargo.toml` to:
 
 ```toml
-rocket_cors = { version = "0.6.0-alpha2", default-features = false }
+rocket_cors = { version = "0.6.0-alpha3", default-features = false }
 ```
 
 ## Usage
