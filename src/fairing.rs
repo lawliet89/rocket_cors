@@ -34,7 +34,7 @@ impl rocket::route::Handler for FairingErrorRoute {
                 500
             });
         let status = Status::from_code(status).unwrap_or(Status::InternalServerError);
-        Outcome::Failure(status)
+        Outcome::Error(status)
     }
 }
 

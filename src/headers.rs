@@ -101,9 +101,9 @@ impl Origin {
         match request.headers().get_one("Origin") {
             Some(origin) => match Self::from_str(origin) {
                 Ok(origin) => Outcome::Success(origin),
-                Err(e) => Outcome::Failure((Status::BadRequest, e)),
+                Err(e) => Outcome::Error((Status::BadRequest, e)),
             },
-            None => Outcome::Forward(()),
+            None => Outcome::Forward(Status::default()),
         }
     }
 }
@@ -164,9 +164,9 @@ impl AccessControlRequestMethod {
         match request.headers().get_one("Access-Control-Request-Method") {
             Some(request_method) => match Self::from_str(request_method) {
                 Ok(request_method) => Outcome::Success(request_method),
-                Err(_) => Outcome::Failure((Status::BadRequest, crate::Error::BadRequestMethod)),
+                Err(_) => Outcome::Error((Status::BadRequest, crate::Error::BadRequestMethod)),
             },
-            None => Outcome::Forward(()),
+            None => Outcome::Forward(Status::default()),
         }
     }
 }
@@ -214,7 +214,7 @@ impl AccessControlRequestHeaders {
                     unreachable!("`AccessControlRequestHeaders::from_str` should never fail")
                 }
             },
-            None => Outcome::Forward(()),
+            None => Outcome::Forward(Status::default()),
         }
     }
 }

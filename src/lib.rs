@@ -134,11 +134,11 @@ Rocket's [managed state](https://rocket.rs/guide/state/#managed-state).
 verb.
 - Then in all the routes you want to enforce CORS on, add a
 [Request Guard](https://rocket.rs/guide/requests/#request-guards) for the
-[`Guard`](Guard) struct in the route arguments. You should not wrap this in an
+[`Guard`] struct in the route arguments. You should not wrap this in an
 `Option` or `Result` because the guard will let non-CORS requests through and will take over
 error handling in case of errors.
 - In your routes, to add CORS headers to your responses, use the appropriate functions on the
-[`Guard`](Guard) for a `Response` or a `Responder`.
+[`Guard`] for a `Response` or a `Responder`.
 
 Refer to the [example](https://github.com/lawliet89/rocket_cors/blob/master/examples/guard.rs).
 
@@ -1515,13 +1515,13 @@ impl<'r> FromRequest<'r> for Guard<'r> {
             Outcome::Success(options) => options,
             _ => {
                 let error = Error::MissingCorsInRocketState;
-                return Outcome::Failure((error.status(), error));
+                return Outcome::Error((error.status(), error));
             }
         };
 
         match Response::validate_and_build(options, request) {
             Ok(response) => Outcome::Success(Self::new(response)),
-            Err(error) => Outcome::Failure((error.status(), error)),
+            Err(error) => Outcome::Error((error.status(), error)),
         }
     }
 }
@@ -1757,27 +1757,27 @@ fn validate_allowed_headers(
 /// Gets the `Origin` request header from the request
 fn origin(request: &Request<'_>) -> Result<Option<Origin>, Error> {
     match Origin::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(origin) => Ok(Some(origin)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
 /// Gets the `Access-Control-Request-Method` request header from the request
 fn request_method(request: &Request<'_>) -> Result<Option<AccessControlRequestMethod>, Error> {
     match AccessControlRequestMethod::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(method) => Ok(Some(method)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
 /// Gets the `Access-Control-Request-Headers` request header from the request
 fn request_headers(request: &Request<'_>) -> Result<Option<AccessControlRequestHeaders>, Error> {
     match AccessControlRequestHeaders::from_request_sync(request) {
-        Outcome::Forward(()) => Ok(None),
+        Outcome::Forward(_) => Ok(None),
         Outcome::Success(geaders) => Ok(Some(geaders)),
-        Outcome::Failure((_, err)) => Err(err),
+        Outcome::Error((_, err)) => Err(err),
     }
 }
 
@@ -1997,8 +1997,8 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
     ) -> rocket::route::Outcome<'r> {
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
-            Outcome::Failure((status, _)) => return rocket::route::Outcome::failure(status),
-            Outcome::Forward(()) => unreachable!("Should not be reachable"),
+            Outcome::Error((status, _)) => return rocket::route::Outcome::Error(status),
+            Outcome::Forward(_) => unreachable!("Should not be reachable"),
         };
 
         info_!(
@@ -2461,7 +2461,7 @@ mod tests {
     #[test]
     fn all_allowed_headers_are_validated_correctly() {
         let allowed_headers = AllOrSome::All;
-        let requested_headers = vec!["Bar", "Foo"];
+        let requested_headers = ["Bar", "Foo"];
 
         not_err!(validate_allowed_headers(
             &FromStr::from_str(&requested_headers.join(",")).unwrap(),
@@ -2473,8 +2473,8 @@ mod tests {
     /// echoes back the list that is actually requested for and not the whole list
     #[test]
     fn allowed_headers_are_validated_correctly() {
-        let allowed_headers = vec!["Bar", "Baz", "Foo"];
-        let requested_headers = vec!["Bar", "Foo"];
+        let allowed_headers = ["Bar", "Baz", "Foo"];
+        let requested_headers = ["Bar", "Foo"];
 
         not_err!(validate_allowed_headers(
             &FromStr::from_str(&requested_headers.join(",")).unwrap(),
@@ -2490,8 +2490,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "HeadersNotAllowed")]
     fn allowed_headers_errors_on_non_subset() {
-        let allowed_headers = vec!["Bar", "Baz", "Foo"];
-        let requested_headers = vec!["Bar", "Foo", "Unknown"];
+        let allowed_headers = ["Bar", "Baz", "Foo"];
+        let requested_headers = ["Bar", "Foo", "Unknown"];
 
         validate_allowed_headers(
             &FromStr::from_str(&requested_headers.join(",")).unwrap(),
