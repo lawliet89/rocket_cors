@@ -12,9 +12,6 @@ categories = ["web-programming"]
 edition = "2021"
 rust-version = "1.56"
 
-[badges]
-travis-ci = { repository = "lawliet89/rocket_cors" }
-
 [features]
 default = ["serialization"]
 
