@@ -12,7 +12,9 @@ jobs:
       matrix:
         rust:
           - stable
+          - beta
           - nightly
+          - 1.56.0
         os:
           - ubuntu-latest
           - windows-latest
